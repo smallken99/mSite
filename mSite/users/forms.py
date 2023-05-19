@@ -28,11 +28,11 @@ class RegistrationForm(FlaskForm):
 
 
 class LoginForm(FlaskForm):
-    email = StringField('Email',
+    email = StringField('帳號 (Email)',
                         validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    remember = BooleanField('Remember Me')
-    submit = SubmitField('Login')
+    password = PasswordField('密碼', validators=[DataRequired()])
+    remember = BooleanField('記住我')
+    submit = SubmitField('登入')
 
 
 class UpdateAccountForm(FlaskForm):
