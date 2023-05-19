@@ -1,0 +1,8 @@
+{% extends "layout.html" %}
+{% block content %}
+    <h2>上傳轉檔</h2>
+    <form method="POST" action="/process" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".xlsx, .xls">
+        <input type="submit" value="轉檔">
+    </form>
+{% endblock content %}
