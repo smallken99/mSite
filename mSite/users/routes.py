@@ -1,4 +1,4 @@
-from flask import render_template, url_for, flash, redirect, request, Blueprint
+from flask import render_template, url_for, flash, redirect, request, Blueprint,jsonify
 from flask_login import login_user, current_user, logout_user, login_required
 from mSite import db, bcrypt
 from mSite.models import User, Post
@@ -107,3 +107,9 @@ def reset_token(token):
         flash('Your password has been updated! You are now able to log in', 'success')
         return redirect(url_for('users.login'))
     return render_template('reset_token.html', title='Reset Password', form=form)
+
+@users.route('/getusers', methods=['GET'])
+def get_users():
+    # 在這裡獲取使用者清單數據，可以從資料庫或其他來源獲取
+
+    return jsonify([user.to_dict() for user in User.query.all()])

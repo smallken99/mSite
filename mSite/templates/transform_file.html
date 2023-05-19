@@ -1,8 +1,70 @@
 {% extends "layout.html" %}
 {% block content %}
-    <h2>上傳轉檔</h2>
-    <form method="POST" action="/process" enctype="multipart/form-data">
-        <input type="file" name="file" accept=".xlsx, .xls">
-        <input type="submit"    value="開始轉檔">
-    </form>
+
+    <div id="app" class="container-fluid">
+        <h2>上傳轉檔</h2>
+        <form method="POST" action="/process" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".xlsx, .xls">
+            <input type="submit"   value="開始轉檔">
+        </form>         
+        
+
+        <el-divider></el-divider>
+  
+        <template>
+            <el-table
+              :data="users"
+              stripe
+              style="width: 100%"     
+              >
+              <el-table-column
+                prop="id"
+                label="ID"
+                width="180">
+              </el-table-column>
+              <el-table-column
+                prop="username"
+                label="姓名"
+                width="180">
+              </el-table-column>
+              <el-table-column
+                prop="email"
+                label="郵件">
+              </el-table-column>
+            </el-table>
+          </template>                
+    </div>
+ 
+    <script>
+ 
+        new Vue({
+            el: '#app',
+            data: {
+                name: '',
+                email: '',
+                users: [],
+            },
+            mounted() {
+                this.getUsers();
+            },
+            methods: {
+                // getUsers() {                
+                //     eel.get_users()((result) => {
+                //         this.users = result;
+                //         console.log(this.users)                    
+                //     });
+                // },
+                getUsers(){
+                    axios.get('/getusers')
+                    .then(response => {
+                    this.users = response.data;
+                    })
+                    .catch(error => {
+                    console.error(error);
+                    }); 
+                }
+  
+            }
+        });
+    </script>
 {% endblock content %}

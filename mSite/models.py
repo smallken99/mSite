@@ -35,6 +35,14 @@ class User(db.Model, UserMixin):
 
     def __repr__(self):
         return f"User('{self.username}', '{self.email}', '{self.image_file}')"
+    
+    def to_dict(self):
+            return {
+                'id': self.id,
+                'username': self.username,
+                'email': self.email,
+                'image_file': self.image_file
+            }
 
 
 class Post(db.Model):
