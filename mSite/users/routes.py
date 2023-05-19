@@ -69,6 +69,7 @@ def account():
 
 
 @users.route("/user/<string:username>")
+@login_required
 def user_posts(username):
     page = request.args.get('page', 1, type=int)
     user = User.query.filter_by(username=username).first_or_404()
@@ -109,6 +110,7 @@ def reset_token(token):
     return render_template('reset_token.html', title='Reset Password', form=form)
 
 @users.route('/getusers', methods=['GET'])
+@login_required
 def get_users():
     # 在這裡獲取使用者清單數據，可以從資料庫或其他來源獲取
 

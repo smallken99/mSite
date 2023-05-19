@@ -23,6 +23,7 @@ def new_post():
 
 
 @posts.route("/post/<int:post_id>")
+@login_required
 def post(post_id):
     post = Post.query.get_or_404(post_id)
     return render_template('post.html', title=post.title, post=post)
