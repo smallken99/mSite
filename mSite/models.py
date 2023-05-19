@@ -65,15 +65,17 @@ class OrderFormat(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     unit_price_tax_included = db.Column(db.Float, nullable=False)
     subtotal_tax_included = db.Column(db.Float, nullable=False)
+    order_datetime = db.Column(db.DateTime, nullable=False)  #  訂單日期時間欄位
     created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now())
 
-    def __init__(self, order_no, buyer_name, product_name, quantity, unit_price_tax_included, subtotal_tax_included):
+    def __init__(self, order_no, buyer_name, product_name, quantity, unit_price_tax_included, subtotal_tax_included, order_datetime):
         self.order_no = order_no
         self.buyer_name = buyer_name
         self.product_name = product_name
         self.quantity = quantity
         self.unit_price_tax_included = unit_price_tax_included
         self.subtotal_tax_included = subtotal_tax_included
+        self.order_datetime = order_datetime
 
     def to_dict(self):
         return {
@@ -84,7 +86,8 @@ class OrderFormat(db.Model):
             'quantity': self.quantity,
             'unit_price_tax_included': self.unit_price_tax_included,
             'subtotal_tax_included': self.subtotal_tax_included,
-            'created_at': self.created_at
+            'created_at': self.created_at,
+            'order_datetime': self.order_datetime
         }
     # Query to check if an order_no exists
     def check_order_is_exists(order_no):

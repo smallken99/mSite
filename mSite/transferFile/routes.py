@@ -1,8 +1,10 @@
-from flask import Blueprint,render_template, request,send_file
+from flask import Blueprint,render_template, request,send_file,jsonify
 from flask_login import login_required
 import pandas as pd
 from io import BytesIO
 from mSite.models import OrderFormat
+from mSite import db
+from sqlalchemy import text
 
 trans = Blueprint("trans",__name__)
 
@@ -55,6 +57,9 @@ def process():
         # 小計金額(含稅)
         SubtotalAmount = (unitPrice)*(quantity)
 
+        # 訂單日期時間
+        order_datetime = row['訂單成立日期']
+
         # 添加一行新的數據            
         new_data = {'訂單編號':orderNo, '發票類型': invoiceType, '載具': carrier,'買方名稱': buyerName, 
                     '品名': productItem, '課稅別': '應稅', '數量': quantity , '單價(含稅)': unitPrice, 
@@ -63,7 +68,7 @@ def process():
 
 
         # 先保存資料,最後再一起存資料庫
-        orderRecordList.append(OrderFormat(orderNo,buyerName,productItem,quantity,unitPrice,SubtotalAmount))
+        orderRecordList.append(OrderFormat(orderNo,buyerName,productItem,quantity,unitPrice,SubtotalAmount,order_datetime))
 
         # 保存在excel資料表
         newdf = pd.concat([newdf, pd.DataFrame([new_data])], ignore_index=True)
@@ -75,7 +80,7 @@ def process():
                             '數量': 1 , '單價(含稅)': farePrice, 
                         '小計金額(含稅)':farePrice}
             # 先保存資料,最後再一起存資料庫
-            orderRecordList.append(OrderFormat(orderNo,'','運費',1,farePrice,farePrice))                                
+            orderRecordList.append(OrderFormat(orderNo,'','運費',1,farePrice,farePrice,order_datetime))                                
             # 保存在excel資料表
             newdf = pd.concat([newdf, pd.DataFrame([new_data2])], ignore_index=True)
 
@@ -99,3 +104,23 @@ def process():
             as_attachment=True,
             download_name=filename,
             mimetype='text/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+# 在你的路由或視圖函式中
+@trans.route('/statistics', methods=['GET'])
+def get_statistics():
+    query = text('''
+    SELECT DATE_FORMAT(order_datetime, '%Y-%m-%d') AS date, SUM(subtotal_tax_included) AS total
+    FROM mSite.orderformat
+    GROUP BY DATE_FORMAT(order_datetime, '%Y-%m-%d')
+    ORDER BY DATE_FORMAT(order_datetime, '%Y-%m-%d') DESC
+    LIMIT 30
+    ''')
+    result = db.session.execute(query)
+
+    # 將結果轉換為字典列表
+    statistics = []
+    for row in result:
+        statistics.append({'date': row.date, 'total': row.total})
+
+    # 回傳統計資料給前端
+    return jsonify(statistics)
