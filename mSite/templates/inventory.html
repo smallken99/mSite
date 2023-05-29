@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div id="app" class="container-fluid">
+    <h2>品項庫存(結算至4/30)</h2>
+
+    <template>
+        <el-table :data="datas" stripe style="width: 100%;font-size: 16px;">
+            <el-table-column prop="item" label="品項" width="420">
+            </el-table-column>
+            <el-table-column prop="quantity" label="庫存數量" sortable align="right">
+            </el-table-column>
+            <el-table-column prop="#" label=""></el-table-column>
+        </el-table>
+    </template>
+</div>
+
+<script>
+    new Vue({
+        el: '#app',
+        data() {
+            return {
+                datas: [],
+            };
+        },
+        created() {
+            this.getStats();
+        },
+        methods: {
+            getStats() {
+                axios.get('/inventory_stat')
+                    .then(response => {
+                        this.datas = response.data;
+                    })
+                    .catch(error => {
+                        console.error(error);
+                    });
+            },
+        },
+    });
+</script>
+{% endblock content %}

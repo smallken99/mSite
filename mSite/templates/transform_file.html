@@ -1,43 +1,43 @@
 {% extends "layout.html" %}
 {% block content %}
 
-    <div id="app" class="container-fluid">
-        <h2>上傳轉檔</h2>
-        <form method="POST" action="/process" enctype="multipart/form-data">
-            <input type="file" name="file" accept=".xlsx, .xls">
-            <input type="submit"   value="開始轉檔">
-        </form>         
-        
+<div id="app" class="container-fluid">
+    <h2>上傳轉檔</h2>
+    <form method="POST" action="/process" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".xlsx, .xls">
+        <input type="submit" value="開始轉檔">
+    </form>
 
-        <el-divider></el-divider>
-  
-        <template>
-            <el-table :data="orders"  stripe style="width: 90%;font-size: 16px;">
-                <el-table-column prop="date" label="訂單日期">
-                  <template slot-scope="scope">
-                    <span v-bind:style="{ backgroundColor: getBackgroundColor(scope.row.date) }">{% raw %}{{ scope.row.date }}{% endraw %}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="total" label="銷售金額" align="right">
-                    <template slot-scope="scope">
-                        {% raw %} {{ scope.row.total | formatNumber }}{% endraw %}
-                    </template>
-                </el-table-column>
-                <el-table-column prop="#" label="">
-                </el-table-column>
-              </el-table>
-        </template>                
-    </div>
- 
-    <script>
-        Vue.filter('formatNumber', function(value) {
+
+    <el-divider></el-divider>
+
+    <template>
+        <el-table :data="orders" stripe style="width: 90%;font-size: 16px;">
+            <el-table-column prop="date" label="訂單日期">
+                <template slot-scope="scope">
+                    <span v-bind:style="{ backgroundColor: getBackgroundColor(scope.row.date) }">{% raw %}{{
+                        scope.row.date }}{% endraw %}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="total" label="銷售金額" align="right">
+                <template slot-scope="scope">
+                    {% raw %} {{ scope.row.total | formatNumber }}{% endraw %}
+                </template>
+            </el-table-column>
+            <el-table-column prop="#" label=""></el-table-column>
+        </el-table>
+    </template>
+</div>
+
+<script>
+    Vue.filter('formatNumber', function (value) {
         return value.toLocaleString();
-        });        
-        new Vue({
+    });
+    new Vue({
         el: '#app',
         data() {
             return {
-            orders: [],
+                orders: [],
             };
         },
         created() {
@@ -45,25 +45,25 @@
         },
         methods: {
             getStats() {
-            axios.get('/statistics')
-                .then(response => {
-                this.orders = response.data;
-                })
-                .catch(error => {
-                console.error(error);
-                });
+                axios.get('/statistics')
+                    .then(response => {
+                        this.orders = response.data;
+                    })
+                    .catch(error => {
+                        console.error(error);
+                    });
             },
             getBackgroundColor(date) {
-            const dayOfWeek = new Date(date).getDay();
-            if (dayOfWeek === 6) {
-                return 'lightgreen';
-            } else if (dayOfWeek === 0) {
-                return 'lightcoral';
-            } else {
-                return '';
-            }
+                const dayOfWeek = new Date(date).getDay();
+                if (dayOfWeek === 6) {
+                    return 'lightgreen';
+                } else if (dayOfWeek === 0) {
+                    return 'lightcoral';
+                } else {
+                    return '';
+                }
             },
         },
-        });
-    </script>
+    });
+</script>
 {% endblock content %}
