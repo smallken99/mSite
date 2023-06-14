@@ -20,17 +20,30 @@ def inventory_handle():
 @inventory.route('/inventory_stat', methods=['GET'])
 def get_statistics():
     query = text('''
-    select item_description as item,sum(quantity) as quantity   from inventory_details
-    where status= '2'
-    group by item_description
+    select `year_month` as 'year_month' ,`item_description` as 'item_description',sum(quantity) as 'quantity'   from mSite.inventory_details
+    where `status`= '2'  
+    group by `year_month`,`item_description`
     order by sum(quantity) desc
     ''')
     result = db.session.execute(query)
 
-    # 將結果轉換為字典列表
-    statistics = []
-    for row in result:
-        statistics.append({'item': row.item, 'quantity': int(row.quantity)})
+    # 將結果轉換為 DataFrame
+    df = pd.DataFrame(result, columns=['year_month', 'item_description', 'quantity'])
+
+    # 以 item 作為索引，將 yymm 和 quantity 轉換為列
+    df_pivot = df.pivot(index='item_description', columns='year_month', values='quantity')
+
+    # 將 DataFrame 轉換為列表格式
+    data = df_pivot.reset_index().to_dict(orient='records')
+ 
+    new_data = []
+    for d in data:
+        item_description = d['item_description']
+        value_2023_04 = d['2023-04'] if not pd.isna(d['2023-04']) else '0'
+        value_2023_05 = d['2023-05'] if not pd.isna(d['2023-05']) else '0'
+
+        new_dict = {'item_description': item_description, '2023-04': int(value_2023_04), '2023-05': int(value_2023_05)}
+        new_data.append(new_dict)
 
     # 回傳統計資料給前端
-    return jsonify(statistics)
+    return jsonify(new_data)
