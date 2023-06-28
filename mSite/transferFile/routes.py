@@ -40,16 +40,16 @@ def process():
         carrier = '不使用' if preOrderNo != orderNo else ''
 
         # 買方名稱
-        buyerName = row['買家帳號'] if preOrderNo != orderNo else ''
+        buyerName = row['買家帳號 (單)'] if preOrderNo != orderNo else ''
 
         # 品名
-        productItem = '[' + row['收件者姓名'] + ']'+row['商品選項名稱'] if preOrderNo != orderNo else row['商品選項名稱']
+        productItem = '[' + row['收件者姓名 (單)'] + ']'+row['商品選項名稱 (品)'] if preOrderNo != orderNo else row['商品選項名稱 (品)']
 
         # 數量
         quantity = int(row['數量'])
 
         # 單價(含稅)
-        unitPrice = int(row['商品活動價格'])
+        unitPrice = int(row['商品活動價格 (品)'])
 
         # 折扣為負數金額,整筆不用出現
         if unitPrice < 0: continue
@@ -74,7 +74,7 @@ def process():
         newdf = pd.concat([newdf, pd.DataFrame([new_data])], ignore_index=True)
 
         # 有支付運費的情況
-        farePrice = int(row['買家支付運費']) 
+        farePrice = int(row['買家支付的運費 (單)']) 
         if (farePrice > 0) and (preOrderNo != orderNo):
             new_data2 = {'訂單編號':orderNo, '品名': '運費', '課稅別': '應稅',
                             '數量': 1 , '單價(含稅)': farePrice, 
@@ -87,7 +87,7 @@ def process():
         # 保存上一筆資料
         preOrderNo = orderNo
     # 批次新增資料庫
-    OrderFormat.save_multiple_orders(orderRecordList)
+    #OrderFormat.save_multiple_orders(orderRecordList)
     # 打印新的DataFrame
     print(newdf.head())
 
