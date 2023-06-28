@@ -19,7 +19,7 @@ def trans_handle():
 def process():
     file = request.files['file']
     filename = "轉檔後_" + file.filename
-    df = pd.read_excel(file)  # Process the uploaded Excel file
+    df = pd.read_excel(file, engine='openpyxl')  # Process the uploaded Excel file
 
     # Perform any required data processing or analysis on the DataFrame (df) here
     # 創建一個空的DataFrame
