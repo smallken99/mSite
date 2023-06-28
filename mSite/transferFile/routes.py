@@ -87,7 +87,7 @@ def process():
         # 保存上一筆資料
         preOrderNo = orderNo
     # 批次新增資料庫
-    #OrderFormat.save_multiple_orders(orderRecordList)
+    OrderFormat.save_multiple_orders(orderRecordList)
     # 打印新的DataFrame
     print(newdf.head())
 
