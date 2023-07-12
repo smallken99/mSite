@@ -41,8 +41,13 @@ def get_statistics():
         item_description = d['item_description']
         value_2023_04 = d['2023-04'] if not pd.isna(d['2023-04']) else '0'
         value_2023_05 = d['2023-05'] if not pd.isna(d['2023-05']) else '0'
+        value_2023_06 = d['2023-06'] if not pd.isna(d['2023-06']) else '0'
 
-        new_dict = {'item_description': item_description, '2023-04': int(value_2023_04), '2023-05': int(value_2023_05)}
+        new_dict = {'item_description': item_description, 
+                    '2023-04': int(value_2023_04), 
+                    '2023-05': int(value_2023_05),
+                    '2023-06': int(value_2023_06),
+                    }
         new_data.append(new_dict)
 
     # 回傳統計資料給前端

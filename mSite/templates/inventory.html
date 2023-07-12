@@ -5,12 +5,14 @@
     <h2>品項庫存(結算至5/31)</h2>
 
     <template>
-        <el-table :data="datas" stripe :default-sort = "{prop: '2023-05', order: 'descending'}" style="width: 100%;font-size: 16px;">
+        <el-table :data="datas" stripe :default-sort = "{prop: '2023-06', order: 'descending'}" style="width: 100%;font-size: 16px;">
             <el-table-column prop="item_description" label="品項" width="420">
             </el-table-column>
-            <el-table-column prop="2023-04" label="202304" sortable width="100">
+            <el-table-column prop="2023-04" label="202304" sortable width="90">
             </el-table-column>
-            <el-table-column prop="2023-05" label="202305" sortable width="100">
+            <el-table-column prop="2023-05" label="202305" sortable width="90">
+            </el-table-column>
+            <el-table-column prop="2023-06" label="202306" sortable width="90">
             </el-table-column>
         </el-table>
     </template>
