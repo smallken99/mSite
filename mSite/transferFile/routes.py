@@ -43,7 +43,7 @@ def process():
         buyerName = row['買家帳號'] if preOrderNo != orderNo else ''
 
         # 品名
-        productItem = '[' + row['收件者姓名'] + ']'+row['商品選項名稱'] if preOrderNo != orderNo else row['商品選項名稱']
+        productItem = '[' + orderNo[-3:] + ']'+row['商品選項名稱'] if preOrderNo != orderNo else row['商品選項名稱']
 
         # 數量
         quantity = int(row['數量'])
