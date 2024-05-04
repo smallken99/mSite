@@ -5,6 +5,9 @@ from io import BytesIO
 from mSite.models import OrderFormat
 from mSite import db
 from sqlalchemy import text
+from msoffcrypto import OfficeFile
+from flask import current_app
+import os
 
 trans = Blueprint("trans",__name__)
 
@@ -19,7 +22,29 @@ def trans_handle():
 def process():
     file = request.files['file']
     filename = "轉檔後_" + file.filename
-    df = pd.read_excel(file,  engine='openpyxl')  # Process the uploaded Excel file
+
+    # 将文件保存到本地的指定目录
+    save_directory = "./tmp"
+    if not os.path.exists(save_directory):
+        os.makedirs(save_directory)
+    file_path = os.path.join(save_directory, file.filename)
+    file.save(file_path)
+
+    # 解密 Excel 文件并读取数据到 DataFrame
+    with open(file_path, "rb") as f:
+        office_file = OfficeFile(f)
+        office_file.load_key(password=current_app.config['EXCEL_PWD'])
+
+        # 创建一个临时文件来保存解密后的内容
+        temp_file = "temp.xlsx"
+        with open(temp_file, "wb") as decrypted_file:
+            office_file.decrypt(decrypted_file)
+    # 读取解密后的 Excel 文件内容到 DataFrame
+    df = pd.read_excel(temp_file)
+    #df = pd.read_excel(file,  engine='openpyxl')  # Process the uploaded Excel file
+
+    # 删除临时文件
+    os.remove(temp_file)
 
     # Perform any required data processing or analysis on the DataFrame (df) here
     # 創建一個空的DataFrame
