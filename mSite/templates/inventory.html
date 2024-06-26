@@ -2,17 +2,17 @@
 {% block content %}
 
 <div id="app" class="container-fluid">
-    <h2>品項庫存(結算至03/30)</h2>
+    <h2>品項庫存(結算至04/30)</h2>
 
     <template>
-        <el-table :data="datas" stripe :default-sort = "{prop: '2024-03', order: 'descending'}" style="width: 100%;font-size: 16px;">
+        <el-table :data="datas" stripe :default-sort = "{prop: '2024-04', order: 'descending'}" style="width: 100%;font-size: 16px;">
             <el-table-column prop="item_description" label="品項" width="420">
             </el-table-column>         
-            <el-table-column prop="2024-01" label="202401" sortable width="90">
-            </el-table-column>
             <el-table-column prop="2024-02" label="202402" sortable width="90">
             </el-table-column>
             <el-table-column prop="2024-03" label="202403" sortable width="90">
+            </el-table-column>
+            <el-table-column prop="2024-04" label="202404" sortable width="90">
             </el-table-column>
 
         </el-table>
