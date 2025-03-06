@@ -21,7 +21,7 @@ def inventory_handle():
 def get_statistics():
     query = text('''
     select `year_month` as 'year_month' ,`item_description` as 'item_description',sum(quantity) as 'quantity'   from mSite.inventory_details
-    where `status`= '2'  and `year_month` in ('2024-09','2024-07','2024-08')
+    where `status`= '2'  and `year_month` in ('2024-09','2024-10','2024-08')
     group by `year_month`,`item_description`
     order by sum(quantity) desc
     ''')
@@ -40,12 +40,12 @@ def get_statistics():
     for d in data:
         item_description = d['item_description']
         value_2024_02 = d['2024-09'] if not pd.isna(d['2024-09']) else '0'
-        value_2024_03 = d['2024-07'] if not pd.isna(d['2024-07']) else '0'
+        value_2024_03 = d['2024-10'] if not pd.isna(d['2024-10']) else '0'
         value_2024_04 = d['2024-08'] if not pd.isna(d['2024-08']) else '0'
 
         new_dict = {'item_description': item_description, 
                     '2024-09': int(value_2024_02),
-                    '2024-07': int(value_2024_03),
+                    '2024-10': int(value_2024_03),
                     '2024-08': int(value_2024_04),
                     }
         new_data.append(new_dict)
