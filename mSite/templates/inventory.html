@@ -2,17 +2,24 @@
 {% block content %}
 
 <div id="app" class="container-fluid">
-    <h2>品項庫存(結算至02/29)</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2>品項庫存(結算至{{ titleMonth }})</h2>
+        <div>
+            <el-button @click="changePage(1)" :disabled="!hasOlder" size="small"
+                icon="el-icon-arrow-left">更早月份</el-button>
+            <el-button @click="changePage(-1)" :disabled="!hasNewer" size="small">較新月份 <i
+                    class="el-icon-arrow-right el-icon--right"></i></el-button>
+        </div>
+    </div>
 
     <template>
-        <el-table :data="datas" stripe :default-sort = "{prop: '2025-02', order: 'descending'}" style="width: 100%;font-size: 16px;">
-            <el-table-column prop="item_description" label="品項" width="420">
-            </el-table-column>         
-            <el-table-column prop="2024-12" label="202412" sortable width="90">
+        <el-table :data="datas" stripe :default-sort="{prop: currentSortProp, order: 'descending'}"
+            style="width: 100%;font-size: 16px;">
+            <el-table-column prop="item_description" label="品項" min-width="200">
             </el-table-column>
-            <el-table-column prop="2025-01" label="202501" sortable width="90">
-            </el-table-column>
-            <el-table-column prop="2025-02" label="202502" sortable width="90">
+
+            <el-table-column v-for="month in displayMonths" :key="month" :prop="month" :label="month" sortable
+                width="110">
             </el-table-column>
 
         </el-table>
@@ -25,14 +32,60 @@
         data() {
             return {
                 datas: [],
+                allMonths: [],
+                currentMonths: [],
+                currentIndex: 0,
+                monthsPerPage: 3,
+                titleMonth: ''
             };
         },
+        computed: {
+            displayMonths() {
+                // 顯示時按月份升序排列 (左->右: 舊->新)
+                return [...this.currentMonths].sort();
+            },
+            hasNewer() {
+                return this.currentIndex > 0;
+            },
+            hasOlder() {
+                return this.currentIndex + this.monthsPerPage < this.allMonths.length;
+            },
+            currentSortProp() {
+                // 預設對最右邊(最新)的月份排序
+                return this.displayMonths.length > 0 ? this.displayMonths[this.displayMonths.length - 1] : '';
+            }
+        },
         created() {
-            this.getStats();
+            this.getAllMonths();
         },
         methods: {
+            getAllMonths() {
+                axios.get('/inventory_available_months')
+                    .then(response => {
+                        this.allMonths = response.data; // 預期後端回傳降序 ['2025-02', '2025-01', ...]
+                        if (this.allMonths.length > 0) {
+                            this.currentIndex = 0;
+                            this.updateCurrentMonths();
+                        }
+                    })
+                    .catch(error => console.error(error));
+            },
+            updateCurrentMonths() {
+                this.currentMonths = this.allMonths.slice(this.currentIndex, this.currentIndex + this.monthsPerPage);
+
+                if (this.currentMonths.length > 0) {
+                    // 更新標題月份 (取這頁當中最新的月份)
+                    // 因為 allMonths 是降序，currentMonths[0] 就是這頁最新的
+                    this.titleMonth = this.currentMonths[0].substring(5) + "/" + this.currentMonths[0].substring(8);
+                    // 但原標題格式是 "02/29"，這裡先只顯示 "MM" 或完整的 "YYYY-MM"
+                    // 為了美觀，顯示完整 YYYY-MM
+                    this.titleMonth = this.currentMonths[0];
+                }
+
+                this.getStats();
+            },
             getStats() {
-                axios.get('/inventory_stat')
+                axios.post('/inventory_stat', { months: this.currentMonths })
                     .then(response => {
                         this.datas = response.data;
                     })
@@ -40,6 +93,18 @@
                         console.error(error);
                     });
             },
+            changePage(direction) {
+                const newIndex = this.currentIndex + direction * this.monthsPerPage;
+                // 簡單邊界檢查
+                if (newIndex < 0) {
+                    this.currentIndex = 0;
+                } else if (newIndex >= this.allMonths.length) {
+                    return; // 已經是最底了
+                } else {
+                    this.currentIndex = newIndex;
+                }
+                this.updateCurrentMonths();
+            }
         },
     });
 </script>
