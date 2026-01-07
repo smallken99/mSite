@@ -3,3 +3,4 @@ config.py
 site.db
 tmp/
 **/__pycache__
+.venv/
