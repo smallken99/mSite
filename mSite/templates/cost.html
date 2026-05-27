@@ -1,0 +1,145 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div id="costApp" class="container-fluid">
+
+    <!-- 頁首：標題 + 月份下拉選單 -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <h2>成本分析（{{ "{{ selectedMonth }}" }}）</h2>
+        <el-select
+            v-model="selectedMonth"
+            placeholder="選擇月份"
+            size="small"
+            style="width: 160px;"
+            @change="fetchCostData">
+            <el-option
+                v-for="m in availableMonths"
+                :key="m"
+                :label="m"
+                :value="m">
+            </el-option>
+        </el-select>
+    </div>
+
+    <!-- 資料表格 -->
+    <template>
+        <el-table
+            :data="tableData"
+            stripe
+            border
+            style="width: 100%; font-size: 15px;"
+            :default-sort="{ prop: 'total_amount', order: 'descending' }">
+
+            <el-table-column
+                prop="dr_account_id"
+                label="科目代號"
+                width="120"
+                sortable>
+            </el-table-column>
+
+            <el-table-column
+                prop="item_description"
+                label="品項說明"
+                min-width="200"
+                sortable>
+            </el-table-column>
+
+            <el-table-column
+                prop="total_amount"
+                label="合計金額"
+                width="140"
+                sortable
+                align="right">
+                <template slot-scope="scope">
+                    {{ "{{ formatNumber(scope.row.total_amount) }}" }}
+                </template>
+            </el-table-column>
+
+            <el-table-column
+                prop="total_qty"
+                label="合計數量"
+                width="120"
+                sortable
+                align="right">
+                <template slot-scope="scope">
+                    {{ "{{ formatNumber(scope.row.total_qty) }}" }}
+                </template>
+            </el-table-column>
+
+            <el-table-column
+                prop="unit_cost"
+                label="平均單價"
+                width="130"
+                sortable
+                align="right">
+                <template slot-scope="scope">
+                    {{ "{{ formatNumber(scope.row.unit_cost) }}" }}
+                </template>
+            </el-table-column>
+
+        </el-table>
+    </template>
+
+    <!-- 載入中提示 -->
+    <div v-if="loading" style="text-align:center; margin-top: 20px;">
+        <i class="el-icon-loading"></i> 資料載入中...
+    </div>
+
+    <!-- 無資料提示 -->
+    <div v-if="!loading && tableData.length === 0" style="text-align:center; margin-top: 20px; color: #999;">
+        該月份無成本資料
+    </div>
+
+</div>
+
+<script>
+    new Vue({
+        el: '#costApp',
+        data() {
+            return {
+                availableMonths: [],
+                selectedMonth: '',
+                tableData: [],
+                loading: false,
+            };
+        },
+        created() {
+            this.fetchAvailableMonths();
+        },
+        methods: {
+            fetchAvailableMonths() {
+                axios.get('/cost_available_months')
+                    .then(response => {
+                        this.availableMonths = response.data;
+                        if (this.availableMonths.length > 0) {
+                            this.selectedMonth = this.availableMonths[0]; // 預設最新月份
+                            this.fetchCostData();
+                        }
+                    })
+                    .catch(error => console.error('取得月份清單失敗:', error));
+            },
+            fetchCostData() {
+                if (!this.selectedMonth) return;
+                this.loading = true;
+                this.tableData = [];
+                axios.post('/cost_stat', { month: this.selectedMonth })
+                    .then(response => {
+                        this.tableData = response.data;
+                    })
+                    .catch(error => console.error('取得成本資料失敗:', error))
+                    .finally(() => {
+                        this.loading = false;
+                    });
+            },
+            formatNumber(val) {
+                if (val === null || val === undefined) return '—';
+                return Number(val).toLocaleString('zh-TW', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+        }
+    });
+</script>
+
+{% endblock content %}

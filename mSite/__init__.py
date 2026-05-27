@@ -28,11 +28,13 @@ def create_app(config_class=Config):
     from mSite.posts.routes import posts
     from mSite.transferFile.routes import trans
     from mSite.inventory.routes import inventory
+    from mSite.cost.routes import cost
     app.register_blueprint(main)
     app.register_blueprint(users)
     app.register_blueprint(posts)
     app.register_blueprint(trans)
     app.register_blueprint(inventory)
+    app.register_blueprint(cost)
 
 
 
