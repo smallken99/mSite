@@ -41,6 +41,11 @@ def process():
             office_file.decrypt(decrypted_file)
     # 读取解密后的 Excel 文件内容到 DataFrame
     df = pd.read_excel(temp_file)
+    
+    # 避免文字欄位出現 NaN (float) 導致資料庫寫入失敗 (nan can not be used with MySQL)
+    for col in ['買家帳號', '商品選項名稱', '訂單編號']:
+        if col in df.columns:
+            df[col] = df[col].fillna('').astype(str)
     #df = pd.read_excel(file,  engine='openpyxl')  # Process the uploaded Excel file
 
     # 删除临时文件
