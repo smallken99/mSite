@@ -29,9 +29,11 @@ body.shop-body {
     color: var(--shop-text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     margin: 0;
-    padding-top: 60px;
-    padding-bottom: 70px;
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(65px + env(safe-area-inset-bottom, 0px));
     min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
 }
 
 /* --- 頂部導覽列 --- */
@@ -40,15 +42,17 @@ body.shop-body {
     top: 0;
     left: 0;
     right: 0;
-    height: 56px;
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: 16px;
+    padding-right: 16px;
     background: #ffffff;
     border-bottom: 1px solid var(--shop-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
     z-index: 1000;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
 
 .shop-header .brand-title {
@@ -201,7 +205,8 @@ body.shop-body {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 56px;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     background: #ffffff;
     border-top: 1px solid var(--shop-border);
     display: flex;
@@ -220,7 +225,7 @@ body.shop-body {
     text-decoration: none;
     font-size: 11px;
     flex: 1;
-    height: 100%;
+    height: 56px;
     background: none;
     border: none;
     cursor: pointer;
@@ -241,6 +246,13 @@ body.shop-body {
    商品規格 / 加購物車彈窗（蝦皮 APP 風格 SKU Drawer）
    ========================================== */
 
+.sku-drawer .el-drawer {
+    border-radius: 16px 16px 0 0 !important;
+    overflow: hidden !important;
+    max-height: 85vh !important;
+    max-height: 85dvh !important;
+}
+
 .sku-drawer .el-drawer__body {
     padding: 0 !important;
     overflow: hidden;
@@ -251,6 +263,7 @@ body.shop-body {
     display: flex;
     flex-direction: column;
     height: 100%;
+    height: -webkit-fill-available;
     background: #ffffff;
     overflow: hidden;
     position: relative;
@@ -510,7 +523,7 @@ body.shop-body {
 .sku-footer {
     display: flex;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)) 16px;
     border-top: 1px solid var(--shop-border);
     background: #ffffff;
     box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.05);
@@ -623,7 +636,7 @@ body.shop-body {
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 16px;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)) 16px;
     background: #ffffff;
     border-top: 1px solid var(--shop-border);
     box-shadow: 0 -4px 12px rgba(0,0,0,0.05);

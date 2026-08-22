@@ -1,4 +1,6 @@
-from flask import Flask
+import os
+import time
+from flask import Flask, url_for as flask_url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
@@ -22,6 +24,22 @@ def create_app(config_class=Config):
     bcrypt.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
+
+    # 自動快取破壞 (Cache Busting)：為所有靜態資源自動追加修改時間戳記 ?v=<mtime>
+    @app.context_processor
+    def override_url_for():
+        return dict(url_for=dated_url_for)
+
+    def dated_url_for(endpoint, **values):
+        if endpoint == 'static':
+            filename = values.get('filename', None)
+            if filename:
+                file_path = os.path.join(app.root_path, endpoint, filename)
+                try:
+                    values['v'] = int(os.stat(file_path).st_mtime)
+                except OSError:
+                    values['v'] = int(time.time())
+        return flask_url_for(endpoint, **values)
 
     from mSite.main.routes import main
     from mSite.users.routes import users
