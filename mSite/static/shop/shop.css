@@ -288,11 +288,22 @@ body.shop-body {
     height: 92px;
     border-radius: 8px;
     overflow: hidden;
-    border: 1.5px solid #e2e8f0;
+    border: 1.5px solid #cbd5e1;
     background: #f8fafc;
     flex-shrink: 0;
     position: relative;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sku-thumb-wrap:hover {
+    border-color: var(--shop-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.sku-thumb-wrap:active {
+    transform: scale(0.96);
 }
 
 .sku-thumb-img {
@@ -303,8 +314,30 @@ body.shop-body {
     transition: transform 0.25s ease, opacity 0.2s ease;
 }
 
-.sku-thumb-img:hover {
-    transform: scale(1.04);
+.sku-thumb-wrap:hover .sku-thumb-img {
+    transform: scale(1.06);
+}
+
+.sku-thumb-zoom-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(2px);
+    color: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    pointer-events: none;
+    transition: background 0.2s ease;
+}
+
+.sku-thumb-wrap:hover .sku-thumb-zoom-badge {
+    background: rgba(15, 23, 42, 0.85);
 }
 
 .sku-header-info {
@@ -740,4 +773,104 @@ body.shop-body {
 .btn-continue-shopping {
     width: 100%;
     border-radius: 8px;
+}
+
+/* ==========================================
+   圖片放大燈箱 (Image Preview Lightbox)
+   ========================================== */
+
+.image-preview-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 3500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    cursor: zoom-out;
+}
+
+.image-preview-wrapper {
+    position: relative;
+    max-width: 92vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+}
+
+.image-preview-main-img {
+    max-width: 100%;
+    max-height: 75vh;
+    max-height: 75dvh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    background-color: #ffffff;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.image-preview-close-btn {
+    position: absolute;
+    top: -46px;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    color: #ffffff;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.image-preview-close-btn:hover {
+    background: rgba(255, 255, 255, 0.45);
+    transform: scale(1.1);
+}
+
+.image-preview-caption {
+    color: #f8fafc;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-top: 14px;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+    padding: 4px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 20px;
+}
+
+/* 燈箱淡入淡出動畫 */
+.img-fade-enter-active, .img-fade-leave-active {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.img-fade-enter, .img-fade-leave-to {
+    opacity: 0;
+}
+
+.img-fade-enter .image-preview-wrapper {
+    transform: scale(0.92);
+}
+
+.img-fade-enter-to .image-preview-wrapper {
+    transform: scale(1);
+}
+
+.img-fade-leave-active .image-preview-wrapper {
+    transform: scale(0.92);
 }

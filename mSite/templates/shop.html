@@ -92,12 +92,15 @@
         <div v-if="detailProduct" class="sku-modal-container">
             <!-- 1. 頂部固定預覽區 (規格圖片、價格、庫存即時置頂顯示) -->
             <div class="sku-header">
-                <!-- 規格/商品縮圖 -->
-                <div class="sku-thumb-wrap">
+                <!-- 規格/商品縮圖 (點擊可放大) -->
+                <div class="sku-thumb-wrap" @click="previewImage(detailDisplayImage)" title="點擊放大圖片">
                     <img :src="detailDisplayImage"
                          :alt="detailProduct.name"
                          class="sku-thumb-img"
                          @error="onImageError($event)">
+                    <div class="sku-thumb-zoom-badge">
+                        <i class="el-icon-zoom-in"></i>
+                    </div>
                 </div>
 
                 <!-- 價格、庫存與已選規格資訊 -->
@@ -345,6 +348,21 @@
         </div>
     </el-dialog>
 
+    <!-- 圖片放大預覽燈箱 (Lightbox) -->
+    <transition name="img-fade">
+        <div v-if="previewImageUrl" class="image-preview-overlay" @click="closeImagePreview">
+            <div class="image-preview-wrapper" @click.stop>
+                <button class="image-preview-close-btn" @click="closeImagePreview" title="關閉預覽">
+                    <i class="el-icon-close"></i>
+                </button>
+                <img :src="previewImageUrl" class="image-preview-main-img" alt="圖片放大" @error="onImageError($event)">
+                <div class="image-preview-caption" v-if="previewImageTitle">
+                    {{ "{{ previewImageTitle }}" }}
+                </div>
+            </div>
+        </div>
+    </transition>
+
 </div>
 
 <script>
@@ -367,7 +385,10 @@ new Vue({
             showDetail: false,
             detailProduct: null,
             selectedVariant: null,
-            detailQty: 1
+            detailQty: 1,
+            // 圖片放大預覽
+            previewImageUrl: null,
+            previewImageTitle: ''
         };
     },
     computed: {
@@ -404,6 +425,26 @@ new Vue({
                 .finally(() => {
                     this.loading = false;
                 });
+        },
+        // --- 圖片放大預覽 ---
+        previewImage(url, title) {
+            if (!url) return;
+            this.previewImageUrl = url;
+            if (title) {
+                this.previewImageTitle = title;
+            } else if (this.detailProduct) {
+                let text = this.detailProduct.name;
+                if (this.selectedVariant && this.selectedVariant.name) {
+                    text += ' - ' + this.selectedVariant.name;
+                }
+                this.previewImageTitle = text;
+            } else {
+                this.previewImageTitle = '';
+            }
+        },
+        closeImagePreview() {
+            this.previewImageUrl = null;
+            this.previewImageTitle = '';
         },
         // --- 商品詳情與規格選取 ---
         openProductDetail(product) {
