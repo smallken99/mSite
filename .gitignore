@@ -5,4 +5,7 @@ instance/
 *.db
 tmp/
 **/__pycache__
-.venv/
+.venv/
+mSite/static/shop/announcements/*.jpg
+mSite/static/shop/announcements/*.png
+mSite/static/shop/announcements/*.jpeg

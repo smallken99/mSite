@@ -51,6 +51,42 @@
 
                 </el-form>
             </div>
+
+            <!-- 公告圖檔管理 -->
+            <div class="content-section" style="background: #ffffff; padding: 24px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 20px;">
+                <h4 style="margin-bottom: 20px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                    📢 公告圖檔管理
+                </h4>
+                <div style="font-size: 13px; color: #64748b; margin-bottom: 16px;">
+                    上傳公告圖檔後，客戶進入商城時會自動彈出公告。上傳新圖將取代舊圖並重新通知所有使用者。
+                </div>
+
+                <!-- 目前公告預覽 -->
+                <div v-if="announcementImage" style="margin-bottom: 16px;">
+                    <div style="font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 8px;">📷 目前公告圖片：</div>
+                    <div style="position: relative; display: inline-block; max-width: 100%;">
+                        <img :src="'/static/shop/announcements/' + announcementImage + '?t=' + Date.now()" 
+                             alt="公告圖片" 
+                             style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    </div>
+                </div>
+
+                <div v-else style="padding: 30px; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1; color: #94a3b8; margin-bottom: 16px;">
+                    <i class="el-icon-picture-outline" style="font-size: 36px; margin-bottom: 8px;"></i>
+                    <div>目前沒有公告圖片</div>
+                </div>
+
+                <!-- 操作按鈕 -->
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <el-button type="primary" size="small" icon="el-icon-upload2" :loading="uploadingAnnouncement" @click="triggerAnnouncementUpload">
+                        <span v-text="announcementImage ? '更換公告圖片' : '上傳公告圖片'"></span>
+                    </el-button>
+                    <el-button v-if="announcementImage" type="danger" size="small" plain icon="el-icon-delete" :loading="deletingAnnouncement" @click="deleteAnnouncement">
+                        刪除公告
+                    </el-button>
+                </div>
+                <input type="file" ref="announcementFileInput" accept="image/*" style="display: none;" @change="uploadAnnouncement">
+            </div>
         </div>
 
         <div class="col-md-4">
@@ -60,6 +96,16 @@
                     <li>前台下單流程免登入，客戶可在手機上流暢挑選商品。</li>
                     <li>成立訂單時，系統會立即生成純文字格式訂單明細，引導客戶一鍵複製貼至 LINE 給管理人。</li>
                     <li>若有設定管理者 Email，後端會同步寄送格式化 HTML 訂單明細通知信。</li>
+                </ul>
+            </div>
+
+            <div class="content-section" style="background: #fffbeb; padding: 20px; border-radius: 8px; border: 1px solid #fde68a; margin-top: 16px;">
+                <h5 style="color: #92400e; margin-bottom: 12px;">📢 公告說明</h5>
+                <ul style="padding-left: 18px; font-size: 13px; color: #78716c; line-height: 1.8;">
+                    <li>上傳公告圖片後，客戶首次進入商城會自動彈出公告。</li>
+                    <li>客戶勾選「已閱讀」後，同一張公告不會再彈出。</li>
+                    <li>更換新公告圖片時，所有客戶都會重新收到彈出通知。</li>
+                    <li>客戶也可透過底部「最新公告」頁籤主動查看。</li>
                 </ul>
             </div>
         </div>
@@ -75,6 +121,9 @@ new Vue({
             loading: false,
             saving: false,
             testingEmail: false,
+            uploadingAnnouncement: false,
+            deletingAnnouncement: false,
+            announcementImage: '',
             form: {
                 shop_name: '棋新商城',
                 admin_email: ''
@@ -91,6 +140,7 @@ new Vue({
                 .then(res => {
                     this.form.shop_name = res.data.shop_name || '棋新商城';
                     this.form.admin_email = res.data.admin_email || '';
+                    this.announcementImage = res.data.announcement_image || '';
                 })
                 .catch(err => {
                     console.error(err);
@@ -134,6 +184,60 @@ new Vue({
                     this.testingEmail = false;
                 });
         },
+        // --- 公告圖檔 ---
+        triggerAnnouncementUpload() {
+            this.$refs.announcementFileInput.value = '';
+            this.$refs.announcementFileInput.click();
+        },
+        uploadAnnouncement(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            this.uploadingAnnouncement = true;
+            axios.post('/shop/admin/api/announcement', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            })
+                .then(res => {
+                    if (res.data.success) {
+                        this.announcementImage = res.data.image_file;
+                        this.$message.success('公告圖片已成功上傳！');
+                    } else {
+                        this.$message.error(res.data.message || '上傳失敗');
+                    }
+                })
+                .catch(err => {
+                    const msg = (err.response && err.response.data && err.response.data.message) || '上傳公告圖片失敗';
+                    this.$message.error(msg);
+                })
+                .finally(() => {
+                    this.uploadingAnnouncement = false;
+                });
+        },
+        deleteAnnouncement() {
+            this.$confirm('確定要刪除目前的公告圖片嗎？刪除後前台將不會顯示公告。', '確認刪除', {
+                confirmButtonText: '確定刪除',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(() => {
+                this.deletingAnnouncement = true;
+                axios.delete('/shop/admin/api/announcement')
+                    .then(res => {
+                        if (res.data.success) {
+                            this.announcementImage = '';
+                            this.$message.success('公告已成功刪除');
+                        }
+                    })
+                    .catch(err => {
+                        this.$message.error('刪除公告失敗');
+                    })
+                    .finally(() => {
+                        this.deletingAnnouncement = false;
+                    });
+            }).catch(() => {});
+        },
         goTo(url) {
             window.location.href = url;
         }
@@ -142,3 +246,4 @@ new Vue({
 </script>
 
 {% endblock content %}
+

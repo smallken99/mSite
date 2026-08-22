@@ -73,6 +73,39 @@ def save_product_image(form_picture):
     return picture_fn
 
 
+def save_announcement_image(form_picture):
+    """儲存上傳之公告圖片並回傳隨機檔名（統一轉為高品質 JPEG 格式）"""
+    random_hex = secrets.token_hex(8)
+    picture_fn = f"{random_hex}.jpg"
+
+    upload_dir = os.path.join(current_app.root_path, 'static', 'shop', 'announcements')
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+    except Exception as e:
+        current_app.logger.warning(f"建立公告圖片目錄警告: {e}")
+
+    picture_path = os.path.join(upload_dir, picture_fn)
+
+    # 縮圖至 1200x1200 以內保持比例（公告圖保留更多細節）
+    output_size = (1200, 1200)
+    i = Image.open(form_picture)
+
+    # 自動修正 EXIF 方向
+    try:
+        i = ImageOps.exif_transpose(i)
+    except Exception:
+        pass
+
+    if i.mode != 'RGB':
+        i = i.convert('RGB')
+
+    resample_filter = getattr(Image, 'Resampling', Image).LANCZOS if hasattr(Image, 'Resampling') else Image.ANTIALIAS
+    i.thumbnail(output_size, resample_filter)
+    i.save(picture_path, format='JPEG', quality=90, optimize=True)
+
+    return picture_fn
+
+
 def build_order_summary_text(order, items, shop_name=None):
     """組裝純文字訂單摘要（供客戶複製貼到 LINE）"""
     if not shop_name:

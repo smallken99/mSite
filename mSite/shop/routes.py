@@ -6,6 +6,7 @@ from mSite.models import ShopProduct, ProductVariant, ShopOrder, ShopOrderItem, 
 from mSite.shop.utils import (
     generate_order_no,
     save_product_image,
+    save_announcement_image,
     build_order_summary_text,
     send_order_notification,
     send_test_email,
@@ -456,9 +457,11 @@ def admin_get_settings():
     """取得商城設定"""
     admin_email = get_shop_setting('admin_email', '')
     shop_name = get_shop_setting('shop_name', '棋新商城')
+    announcement_image = get_shop_setting('announcement_image', '')
     return jsonify({
         'admin_email': admin_email,
-        'shop_name': shop_name
+        'shop_name': shop_name,
+        'announcement_image': announcement_image
     })
 
 
@@ -513,3 +516,90 @@ def admin_test_email():
     success, message = send_test_email(email)
     return jsonify({'success': success, 'message': message}), (200 if success else 400)
 
+
+# --- 公告圖檔 API ---
+
+@shop.route('/shop/api/announcement', methods=['GET'])
+def get_announcement():
+    """前台取得最新公告圖檔（免登入）"""
+    image_file = get_shop_setting('announcement_image', '')
+    version = get_shop_setting('announcement_version', '0')
+
+    if not image_file:
+        return jsonify({'has_announcement': False})
+
+    return jsonify({
+        'has_announcement': True,
+        'image_url': f'/static/shop/announcements/{image_file}',
+        'version': version
+    })
+
+
+@shop.route('/shop/admin/api/announcement', methods=['POST'])
+@login_required
+def admin_upload_announcement():
+    """上傳公告圖檔（覆蓋舊圖，version +1）"""
+    if 'image' not in request.files or not request.files['image'].filename:
+        return jsonify({'success': False, 'message': '未選取圖片檔案'}), 400
+
+    try:
+        filename = save_announcement_image(request.files['image'])
+
+        # 儲存圖檔名到 ShopSetting
+        img_setting = ShopSetting.query.filter_by(key='announcement_image').first()
+        if not img_setting:
+            img_setting = ShopSetting(key='announcement_image', value=filename)
+            db.session.add(img_setting)
+        else:
+            # 刪除舊檔案
+            if img_setting.value:
+                old_path = os.path.join(current_app.root_path, 'static', 'shop', 'announcements', img_setting.value)
+                try:
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except Exception:
+                    pass
+            img_setting.value = filename
+
+        # 更新 version
+        ver_setting = ShopSetting.query.filter_by(key='announcement_version').first()
+        if not ver_setting:
+            ver_setting = ShopSetting(key='announcement_version', value='1')
+            db.session.add(ver_setting)
+        else:
+            try:
+                new_ver = int(ver_setting.value) + 1
+            except (ValueError, TypeError):
+                new_ver = 1
+            ver_setting.value = str(new_ver)
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'image_file': filename,
+            'image_url': f'/static/shop/announcements/{filename}',
+            'version': ver_setting.value
+        })
+    except Exception as e:
+        current_app.logger.error(f"上傳公告圖片失敗: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': f'圖片處理失敗: {str(e)}'}), 500
+
+
+@shop.route('/shop/admin/api/announcement', methods=['DELETE'])
+@login_required
+def admin_delete_announcement():
+    """刪除目前公告"""
+    img_setting = ShopSetting.query.filter_by(key='announcement_image').first()
+    if img_setting and img_setting.value:
+        # 刪除檔案
+        old_path = os.path.join(current_app.root_path, 'static', 'shop', 'announcements', img_setting.value)
+        try:
+            if os.path.exists(old_path):
+                os.remove(old_path)
+        except Exception:
+            pass
+        img_setting.value = ''
+
+    db.session.commit()
+    return jsonify({'success': True})

@@ -16,7 +16,7 @@
     </header>
 
     <!-- 商品列表容器 -->
-    <main class="container-fluid" style="max-width: 1200px; padding: 0;">
+    <main v-show="activeTab === 'products'" class="container-fluid" style="max-width: 1200px; padding: 0;">
         <!-- 載入中動畫 -->
         <div v-if="loading" style="text-align: center; padding: 40px 0; color: #64748b;">
             <i class="el-icon-loading" style="font-size: 32px; margin-bottom: 8px;"></i>
@@ -63,20 +63,43 @@
         </div>
     </main>
 
+    <!-- 最新公告 Tab 視圖 -->
+    <main v-show="activeTab === 'announcement'" class="container-fluid" style="max-width: 1200px; padding: 0;">
+        <div class="announcement-tab-view">
+            <div v-if="announcementImageUrl" class="announcement-tab-content">
+                <div class="announcement-tab-title">
+                    <i class="el-icon-bell"></i>
+                    <span>最新公告</span>
+                </div>
+                <div class="announcement-full-img-wrap">
+                    <img :src="announcementImageUrl" 
+                         alt="最新公告" 
+                         class="announcement-full-img"
+                         @error="onImageError($event)">
+                </div>
+            </div>
+            <div v-else class="announcement-empty">
+                <i class="el-icon-bell" style="font-size: 48px; margin-bottom: 12px;"></i>
+                <div style="font-size: 1.1rem;">📭 目前沒有最新公告</div>
+            </div>
+        </div>
+    </main>
+
     <!-- 底部固定導覽列 -->
     <nav class="shop-bottom-bar">
-        <button class="bottom-nav-item active" @click="scrollToTop">
+        <button class="bottom-nav-item" :class="{active: activeTab === 'products'}" @click="switchTab('products')">
             <i class="el-icon-goods"></i>
-            <span>商品</span>
+            <span>所有商品</span>
         </button>
         <button class="bottom-nav-item" @click="showCart = true">
             <i class="el-icon-shopping-cart-2"></i>
             <span>購物車 ({{ "{{ cartCount }}" }})</span>
         </button>
-        <div class="bottom-nav-item" style="cursor: default;">
-            <i class="el-icon-s-home"></i>
-            <span>主系統</span>
-        </div>
+        <button class="bottom-nav-item" :class="{active: activeTab === 'announcement'}" @click="switchTab('announcement')">
+            <i class="el-icon-bell"></i>
+            <span>最新公告</span>
+            <span v-if="hasNewAnnouncement" class="announcement-dot"></span>
+        </button>
     </nav>
 
     <!-- ============================== -->
@@ -348,6 +371,29 @@
         </div>
     </el-dialog>
 
+    <!-- 公告自動彈出燈箱 -->
+    <transition name="img-fade">
+        <div v-if="showAnnouncementPopup" class="announcement-popup-overlay" @click.self="closeAnnouncementPopup">
+            <div class="announcement-popup-content">
+                <button class="announcement-popup-close" @click="closeAnnouncementPopup" title="關閉">
+                    <i class="el-icon-close"></i>
+                </button>
+                <div class="announcement-popup-img-wrap">
+                    <img :src="announcementImageUrl" alt="最新公告" class="announcement-popup-img" @error="onImageError($event)">
+                </div>
+                <div class="announcement-popup-footer">
+                    <label class="announcement-read-label" @click.stop>
+                        <input type="checkbox" v-model="announcementReadChecked" class="announcement-read-checkbox">
+                        <span>已閱讀，不再顯示此公告</span>
+                    </label>
+                    <el-button type="primary" size="small" @click="closeAnnouncementPopup" style="border-radius: 6px;">
+                        關閉公告
+                    </el-button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
     <!-- 圖片放大預覽燈箱 (Lightbox) -->
     <transition name="img-fade">
         <div v-if="previewImageUrl" class="image-preview-overlay" @click="closeImagePreview">
@@ -388,7 +434,14 @@ new Vue({
             detailQty: 1,
             // 圖片放大預覽
             previewImageUrl: null,
-            previewImageTitle: ''
+            previewImageTitle: '',
+            // Tab 切換
+            activeTab: 'products',
+            // 公告
+            announcementImageUrl: '',
+            announcementVersion: '',
+            showAnnouncementPopup: false,
+            announcementReadChecked: false
         };
     },
     computed: {
@@ -405,11 +458,17 @@ new Vue({
                 return '/static/shop/products/' + this.selectedVariant.image_file;
             }
             return '/static/shop/products/' + (this.detailProduct.image_file || 'default.jpg');
+        },
+        hasNewAnnouncement() {
+            if (!this.announcementVersion) return false;
+            var readVer = localStorage.getItem('msite_announcement_read_version') || '';
+            return readVer !== this.announcementVersion;
         }
     },
     created() {
         this.fetchProducts();
         this.loadCart();
+        this.fetchAnnouncement();
     },
     methods: {
         fetchProducts() {
@@ -632,6 +691,41 @@ new Vue({
         },
         onImageError(e) {
             e.target.src = '/static/shop/products/default.jpg';
+        },
+        // --- Tab 切換 ---
+        switchTab(tab) {
+            this.activeTab = tab;
+            if (tab === 'products') {
+                this.scrollToTop();
+            }
+        },
+        // --- 公告 ---
+        fetchAnnouncement() {
+            axios.get('/shop/api/announcement')
+                .then(res => {
+                    if (res.data.has_announcement) {
+                        this.announcementImageUrl = res.data.image_url;
+                        this.announcementVersion = res.data.version;
+                        // 檢查是否需要自動彈出
+                        var readVer = localStorage.getItem('msite_announcement_read_version') || '';
+                        if (readVer !== res.data.version) {
+                            this.showAnnouncementPopup = true;
+                            this.announcementReadChecked = false;
+                        }
+                    } else {
+                        this.announcementImageUrl = '';
+                        this.announcementVersion = '';
+                    }
+                })
+                .catch(err => {
+                    console.error('取得公告失敗:', err);
+                });
+        },
+        closeAnnouncementPopup() {
+            if (this.announcementReadChecked && this.announcementVersion) {
+                localStorage.setItem('msite_announcement_read_version', this.announcementVersion);
+            }
+            this.showAnnouncementPopup = false;
         }
     }
 });
