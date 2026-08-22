@@ -80,92 +80,100 @@
     </nav>
 
     <!-- ============================== -->
-    <!-- 商品詳情彈窗（蝦皮風格）         -->
+    <!-- 商品規格/加購物車彈窗（蝦皮風格）-->
     <!-- ============================== -->
     <el-drawer
         :visible.sync="showDetail"
         direction="btt"
-        size="92%"
+        size="82%"
         :with-header="false"
-        custom-class="product-detail-drawer">
+        custom-class="sku-drawer">
 
-        <div v-if="detailProduct" class="detail-container">
-            <!-- 頂部操作按鈕 (返回 / 購物車快捷) -->
-            <div class="detail-top-nav">
-                <button class="detail-back-btn" @click="showDetail = false" title="返回商品列表">
-                    <i class="el-icon-arrow-left"></i>
-                    <span>返回列表</span>
-                </button>
-                <button class="detail-cart-btn" @click="openCartFromDetail" title="查看購物車">
-                    <i class="el-icon-shopping-cart-2"></i>
-                    <span v-if="cartCount > 0" class="detail-cart-badge">{{ "{{ cartCount }}" }}</span>
-                </button>
-            </div>
-
-            <!-- 商品大圖 -->
-            <div class="detail-image-wrap">
-                <img :src="detailDisplayImage"
-                     :alt="detailProduct.name"
-                     class="detail-main-image"
-                     @error="onImageError($event)">
-            </div>
-
-            <!-- 商品資訊 -->
-            <div class="detail-info-section">
-                <!-- 價格 -->
-                <div class="detail-price-row">
-                    <template v-if="selectedVariant">
-                        <span class="detail-price-main">NT$ {{ "{{ formatPrice(selectedVariant.price) }}" }}</span>
-                    </template>
-                    <template v-else-if="detailProduct.price === detailProduct.price_max">
-                        <span class="detail-price-main">NT$ {{ "{{ formatPrice(detailProduct.price) }}" }}</span>
-                    </template>
-                    <template v-else>
-                        <span class="detail-price-main">NT$ {{ "{{ formatPrice(detailProduct.price) }}" }}</span>
-                        <span class="detail-price-sep">~</span>
-                        <span class="detail-price-main">{{ "{{ formatPrice(detailProduct.price_max) }}" }}</span>
-                    </template>
+        <div v-if="detailProduct" class="sku-modal-container">
+            <!-- 1. 頂部固定預覽區 (規格圖片、價格、庫存即時置頂顯示) -->
+            <div class="sku-header">
+                <!-- 規格/商品縮圖 -->
+                <div class="sku-thumb-wrap">
+                    <img :src="detailDisplayImage"
+                         :alt="detailProduct.name"
+                         class="sku-thumb-img"
+                         @error="onImageError($event)">
                 </div>
 
-                <!-- 商品名稱 -->
-                <h2 class="detail-product-name">{{ "{{ detailProduct.name }}" }}</h2>
+                <!-- 價格、庫存與已選規格資訊 -->
+                <div class="sku-header-info">
+                    <div class="sku-price-row">
+                        <template v-if="selectedVariant">
+                            <span class="sku-price-currency">NT$</span>
+                            <span class="sku-price-val">{{ "{{ formatPrice(selectedVariant.price) }}" }}</span>
+                        </template>
+                        <template v-else-if="detailProduct.price === detailProduct.price_max">
+                            <span class="sku-price-currency">NT$</span>
+                            <span class="sku-price-val">{{ "{{ formatPrice(detailProduct.price) }}" }}</span>
+                        </template>
+                        <template v-else>
+                            <span class="sku-price-currency">NT$</span>
+                            <span class="sku-price-val">{{ "{{ formatPrice(detailProduct.price) }}" }}</span>
+                            <span class="sku-price-sep">~</span>
+                            <span class="sku-price-val">{{ "{{ formatPrice(detailProduct.price_max) }}" }}</span>
+                        </template>
+                    </div>
 
-                <!-- 商品描述 -->
-                <p v-if="detailProduct.description" class="detail-product-desc">{{ "{{ detailProduct.description }}" }}</p>
+                    <div class="sku-stock-row">
+                        <span v-if="selectedVariant">
+                            庫存：<strong :class="{'text-danger': selectedVariant.stock <= 0}">{{ "{{ selectedVariant.stock }}" }}</strong> 件
+                        </span>
+                        <span v-else>
+                            總庫存：{{ "{{ detailProduct.stock }}" }} 件
+                        </span>
+                    </div>
 
-                <!-- 庫存提示 -->
-                <div v-if="selectedVariant" class="detail-stock-info">
-                    <span v-if="selectedVariant.stock > 0">📦 庫存：{{ "{{ selectedVariant.stock }}" }} 件</span>
-                    <span v-else style="color: #ef4444;">🚫 此規格已售完</span>
+                    <div class="sku-selected-hint">
+                        <span v-if="selectedVariant">已選規格：<span class="sku-selected-name">{{ "{{ selectedVariant.name }}" }}</span></span>
+                        <span v-else class="sku-unselected-hint">請選擇規格</span>
+                    </div>
+                </div>
+
+                <!-- 右上角關閉按鈕 -->
+                <button class="sku-close-btn" @click="showDetail = false" title="關閉">
+                    <i class="el-icon-close"></i>
+                </button>
+            </div>
+
+            <!-- 2. 中間可滾動內容區 -->
+            <div class="sku-body">
+                <!-- 商品基本標題與簡介 -->
+                <div class="sku-product-intro">
+                    <h3 class="sku-product-title">{{ "{{ detailProduct.name }}" }}</h3>
+                    <p v-if="detailProduct.description" class="sku-product-desc">{{ "{{ detailProduct.description }}" }}</p>
                 </div>
 
                 <!-- 規格選擇區 -->
-                <div class="detail-variant-section" v-if="detailProduct.variants && detailProduct.variants.length > 0">
-                    <div class="variant-section-title">
-                        選擇規格
-                        <span v-if="selectedVariant" class="variant-selected-label">：{{ "{{ selectedVariant.name }}" }}</span>
-                        <span style="font-size: 11px; color: #64748b; font-weight: normal; margin-left: 6px;">(可依序加選多種規格)</span>
+                <div class="sku-section" v-if="detailProduct.variants && detailProduct.variants.length > 0">
+                    <div class="sku-section-title">
+                        <span>規格選擇</span>
+                        <span class="sku-sub-tip">(點選規格圖片與價格即時於上方更新)</span>
                     </div>
-                    <div class="variant-pills">
+                    <div class="sku-variant-pills">
                         <button v-for="v in detailProduct.variants"
                                 :key="v.id"
-                                class="variant-pill"
+                                class="sku-pill"
                                 :class="{
-                                    'variant-pill-active': selectedVariant && selectedVariant.id === v.id,
-                                    'variant-pill-disabled': v.stock <= 0
+                                    'sku-pill-active': selectedVariant && selectedVariant.id === v.id,
+                                    'sku-pill-disabled': v.stock <= 0
                                 }"
                                 @click="selectVariant(v)"
                                 :disabled="v.stock <= 0">
-                            <img v-if="v.image_file" :src="'/static/shop/products/' + v.image_file" class="variant-pill-img" alt="">
-                            <span>{{ "{{ v.name }}" }}</span>
-                            <span v-if="v.stock <= 0" class="variant-pill-soldout">售完</span>
+                            <img v-if="v.image_file" :src="'/static/shop/products/' + v.image_file" class="sku-pill-img" alt="">
+                            <span class="sku-pill-name">{{ "{{ v.name }}" }}</span>
+                            <span v-if="v.stock <= 0" class="sku-pill-tag">售完</span>
                         </button>
                     </div>
                 </div>
 
                 <!-- 數量選擇 -->
-                <div class="detail-quantity-section">
-                    <span class="quantity-label">數量</span>
+                <div class="sku-section sku-quantity-section">
+                    <span class="sku-quantity-label">購買數量</span>
                     <el-input-number
                         v-model="detailQty"
                         :min="1"
@@ -175,18 +183,18 @@
                 </div>
             </div>
 
-            <!-- 底部操作列 (加入購物車 + 前往購物車雙按鈕) -->
-            <div class="detail-action-bar">
+            <!-- 3. 底部固定操作列 -->
+            <div class="sku-footer">
                 <el-button type="info"
                            plain
-                           class="btn-detail-cart"
+                           class="btn-sku-cart"
                            :disabled="cartCount === 0"
                            @click="openCartFromDetail">
                     <i class="el-icon-shopping-cart-2"></i>
                     <span>購物車 ({{ "{{ cartCount }}" }})</span>
                 </el-button>
                 <el-button type="primary"
-                           class="btn-add-to-cart"
+                           class="btn-sku-add"
                            :disabled="!selectedVariant || (selectedVariant && selectedVariant.stock <= 0)"
                            @click="addToCartFromDetail">
                     <i class="el-icon-plus"></i>
@@ -397,7 +405,7 @@ new Vue({
                     this.loading = false;
                 });
         },
-        // --- 商品詳情 ---
+        // --- 商品詳情與規格選取 ---
         openProductDetail(product) {
             this.detailProduct = product;
             this.selectedVariant = null;
@@ -409,6 +417,12 @@ new Vue({
             }
 
             this.showDetail = true;
+            this.$nextTick(() => {
+                const body = document.querySelector('.sku-body');
+                if (body) {
+                    body.scrollTop = 0;
+                }
+            });
         },
         selectVariant(v) {
             if (v.stock <= 0) return;
