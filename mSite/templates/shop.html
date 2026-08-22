@@ -1,0 +1,585 @@
+{% extends "shop_layout.html" %}
+{% block content %}
+
+<div id="shopApp" v-cloak>
+
+    <!-- 頂部固定導覽列 -->
+    <header class="shop-header">
+        <a href="{{ url_for('shop.shop_index') }}" class="brand-title">
+            <span>🏪</span>
+            <span>{{ shop_name or '棋新商城' }}</span>
+        </a>
+        <button class="cart-badge-btn" @click="showCart = true" aria-label="購物車">
+            <i class="el-icon-shopping-cart-2"></i>
+            <span v-if="cartCount > 0" class="badge-count">{{ "{{ cartCount }}" }}</span>
+        </button>
+    </header>
+
+    <!-- 商品列表容器 -->
+    <main class="container-fluid" style="max-width: 1200px; padding: 0;">
+        <!-- 載入中動畫 -->
+        <div v-if="loading" style="text-align: center; padding: 40px 0; color: #64748b;">
+            <i class="el-icon-loading" style="font-size: 32px; margin-bottom: 8px;"></i>
+            <div>商品載入中...</div>
+        </div>
+
+        <!-- 無商品提示 -->
+        <div v-else-if="products.length === 0" style="text-align: center; padding: 60px 20px; color: #94a3b8;">
+            <i class="el-icon-goods" style="font-size: 48px; margin-bottom: 12px;"></i>
+            <div style="font-size: 1.1rem;">目前尚無上架商品</div>
+        </div>
+
+        <!-- 商品網格 -->
+        <div v-else class="product-grid">
+            <div v-for="product in products" :key="product.id" class="product-card" @click="openProductDetail(product)">
+                <div class="product-card-img-wrap">
+                    <img :src="'/static/shop/products/' + (product.image_file || 'default.jpg')"
+                         :alt="product.name"
+                         class="product-card-img"
+                         loading="lazy"
+                         @error="onImageError($event)">
+                </div>
+                <div class="product-card-body">
+                    <div>
+                        <h3 class="product-name" :title="product.name">{{ "{{ product.name }}" }}</h3>
+                        <div v-if="product.description" class="product-desc" :title="product.description">
+                            {{ "{{ product.description }}" }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="product-meta">
+                            <span class="product-price" v-if="product.price === product.price_max">
+                                NT$ {{ "{{ formatPrice(product.price) }}" }}
+                            </span>
+                            <span class="product-price" v-else>
+                                NT$ {{ "{{ formatPrice(product.price) }}" }} ~ {{ "{{ formatPrice(product.price_max) }}" }}
+                            </span>
+                            <span v-if="product.stock > 0" class="product-stock-tag">庫存: {{ "{{ product.stock }}" }}</span>
+                            <span v-else class="product-stock-tag" style="color: #ef4444;">已售完</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 底部固定導覽列 -->
+    <nav class="shop-bottom-bar">
+        <button class="bottom-nav-item active" @click="scrollToTop">
+            <i class="el-icon-goods"></i>
+            <span>商品</span>
+        </button>
+        <button class="bottom-nav-item" @click="showCart = true">
+            <i class="el-icon-shopping-cart-2"></i>
+            <span>購物車 ({{ "{{ cartCount }}" }})</span>
+        </button>
+        <div class="bottom-nav-item" style="cursor: default;">
+            <i class="el-icon-s-home"></i>
+            <span>主系統</span>
+        </div>
+    </nav>
+
+    <!-- ============================== -->
+    <!-- 商品詳情彈窗（蝦皮風格）         -->
+    <!-- ============================== -->
+    <el-drawer
+        :visible.sync="showDetail"
+        direction="btt"
+        size="92%"
+        :with-header="false"
+        custom-class="product-detail-drawer">
+
+        <div v-if="detailProduct" class="detail-container">
+            <!-- 頂部操作按鈕 (返回 / 購物車快捷) -->
+            <div class="detail-top-nav">
+                <button class="detail-back-btn" @click="showDetail = false" title="返回商品列表">
+                    <i class="el-icon-arrow-left"></i>
+                    <span>返回列表</span>
+                </button>
+                <button class="detail-cart-btn" @click="openCartFromDetail" title="查看購物車">
+                    <i class="el-icon-shopping-cart-2"></i>
+                    <span v-if="cartCount > 0" class="detail-cart-badge">{{ "{{ cartCount }}" }}</span>
+                </button>
+            </div>
+
+            <!-- 商品大圖 -->
+            <div class="detail-image-wrap">
+                <img :src="detailDisplayImage"
+                     :alt="detailProduct.name"
+                     class="detail-main-image"
+                     @error="onImageError($event)">
+            </div>
+
+            <!-- 商品資訊 -->
+            <div class="detail-info-section">
+                <!-- 價格 -->
+                <div class="detail-price-row">
+                    <template v-if="selectedVariant">
+                        <span class="detail-price-main">NT$ {{ "{{ formatPrice(selectedVariant.price) }}" }}</span>
+                    </template>
+                    <template v-else-if="detailProduct.price === detailProduct.price_max">
+                        <span class="detail-price-main">NT$ {{ "{{ formatPrice(detailProduct.price) }}" }}</span>
+                    </template>
+                    <template v-else>
+                        <span class="detail-price-main">NT$ {{ "{{ formatPrice(detailProduct.price) }}" }}</span>
+                        <span class="detail-price-sep">~</span>
+                        <span class="detail-price-main">{{ "{{ formatPrice(detailProduct.price_max) }}" }}</span>
+                    </template>
+                </div>
+
+                <!-- 商品名稱 -->
+                <h2 class="detail-product-name">{{ "{{ detailProduct.name }}" }}</h2>
+
+                <!-- 商品描述 -->
+                <p v-if="detailProduct.description" class="detail-product-desc">{{ "{{ detailProduct.description }}" }}</p>
+
+                <!-- 庫存提示 -->
+                <div v-if="selectedVariant" class="detail-stock-info">
+                    <span v-if="selectedVariant.stock > 0">📦 庫存：{{ "{{ selectedVariant.stock }}" }} 件</span>
+                    <span v-else style="color: #ef4444;">🚫 此規格已售完</span>
+                </div>
+
+                <!-- 規格選擇區 -->
+                <div class="detail-variant-section" v-if="detailProduct.variants && detailProduct.variants.length > 0">
+                    <div class="variant-section-title">
+                        選擇規格
+                        <span v-if="selectedVariant" class="variant-selected-label">：{{ "{{ selectedVariant.name }}" }}</span>
+                        <span style="font-size: 11px; color: #64748b; font-weight: normal; margin-left: 6px;">(可依序加選多種規格)</span>
+                    </div>
+                    <div class="variant-pills">
+                        <button v-for="v in detailProduct.variants"
+                                :key="v.id"
+                                class="variant-pill"
+                                :class="{
+                                    'variant-pill-active': selectedVariant && selectedVariant.id === v.id,
+                                    'variant-pill-disabled': v.stock <= 0
+                                }"
+                                @click="selectVariant(v)"
+                                :disabled="v.stock <= 0">
+                            <img v-if="v.image_file" :src="'/static/shop/products/' + v.image_file" class="variant-pill-img" alt="">
+                            <span>{{ "{{ v.name }}" }}</span>
+                            <span v-if="v.stock <= 0" class="variant-pill-soldout">售完</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 數量選擇 -->
+                <div class="detail-quantity-section">
+                    <span class="quantity-label">數量</span>
+                    <el-input-number
+                        v-model="detailQty"
+                        :min="1"
+                        :max="selectedVariant ? selectedVariant.stock : 999"
+                        size="small">
+                    </el-input-number>
+                </div>
+            </div>
+
+            <!-- 底部操作列 (加入購物車 + 前往購物車雙按鈕) -->
+            <div class="detail-action-bar">
+                <el-button type="info"
+                           plain
+                           class="btn-detail-cart"
+                           :disabled="cartCount === 0"
+                           @click="openCartFromDetail">
+                    <i class="el-icon-shopping-cart-2"></i>
+                    <span>購物車 ({{ "{{ cartCount }}" }})</span>
+                </el-button>
+                <el-button type="primary"
+                           class="btn-add-to-cart"
+                           :disabled="!selectedVariant || (selectedVariant && selectedVariant.stock <= 0)"
+                           @click="addToCartFromDetail">
+                    <i class="el-icon-plus"></i>
+                    <span>加入購物車</span>
+                </el-button>
+            </div>
+        </div>
+    </el-drawer>
+
+    <!-- 購物車抽屜 (Drawer) -->
+    <el-drawer
+        :visible.sync="showCart"
+        direction="rtl"
+        size="88%"
+        :with-header="false"
+        custom-class="cart-drawer-custom">
+        
+        <div style="display: flex; flex-direction: column; height: 100%; position: relative;">
+            <div class="cart-drawer-header">
+                <h3>🛒 購物車 ({{ "{{ cartCount }}" }} 件)</h3>
+                <el-button type="text" icon="el-icon-close" style="font-size: 20px; color: #64748b;" @click="showCart = false"></el-button>
+            </div>
+
+            <!-- 購物車空狀態 -->
+            <div v-if="cart.length === 0" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; padding: 20px;">
+                <i class="el-icon-shopping-cart-1" style="font-size: 56px; margin-bottom: 12px;"></i>
+                <p style="font-size: 1rem;">購物車目前是空的</p>
+                <el-button type="primary" size="small" @click="showCart = false" style="margin-top: 8px;">去選購商品</el-button>
+            </div>
+
+            <!-- 購物車清單 -->
+            <div v-else class="cart-item-list">
+                <div v-for="(item, idx) in cart" :key="item.variant_id" class="cart-item-card">
+                    <img :src="'/static/shop/products/' + (item.image_file || 'default.jpg')"
+                         :alt="item.name"
+                         class="cart-item-img"
+                         @error="onImageError($event)">
+                    <div class="cart-item-info">
+                        <div class="cart-item-title">{{ "{{ item.name }}" }}</div>
+                        <div v-if="item.variant_name" class="cart-item-variant-label">{{ "{{ item.variant_name }}" }}</div>
+                        <div class="cart-item-price">NT$ {{ "{{ formatPrice(item.price) }}" }}</div>
+                        <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between;">
+                            <el-input-number
+                                v-model="item.quantity"
+                                :min="1"
+                                :max="999"
+                                size="mini"
+                                @change="saveCart">
+                            </el-input-number>
+                            <el-button type="text" icon="el-icon-delete" style="color: #ef4444; font-size: 16px; margin-left: 8px;" @click="removeFromCart(idx)"></el-button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 購物車底部 -->
+            <div v-if="cart.length > 0" class="cart-drawer-footer">
+                <div class="cart-total-row">
+                    <span>合計金額：</span>
+                    <span class="cart-total-amount">NT$ {{ "{{ formatPrice(cartTotal) }}" }}</span>
+                </div>
+                <el-button type="primary" class="btn-checkout" @click="openCheckoutDialog">
+                    成立訂單
+                </el-button>
+            </div>
+        </div>
+    </el-drawer>
+
+    <!-- 成立訂單對話框 (Dialog) -->
+    <el-dialog
+        title="📝 確認成立訂單"
+        :visible.sync="showCheckout"
+        width="90%"
+        :close-on-click-modal="false"
+        custom-class="checkout-dialog">
+        
+        <div>
+            <div style="margin-bottom: 14px;">
+                <label style="font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 6px; display: block;">訂單備註 (選填)：</label>
+                <el-input
+                    type="textarea"
+                    :rows="3"
+                    placeholder="可輸入送貨時間偏好、特殊要求等..."
+                    v-model="customerNote">
+                </el-input>
+            </div>
+
+            <div style="background-color: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                <div style="font-weight: 600; font-size: 0.85rem; color: #475569; margin-bottom: 8px;">訂單明細預覽：</div>
+                <div v-for="item in cart" :key="item.variant_id" style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; color: #334155;">
+                    <span>
+                        {{ "{{ item.name }}" }}
+                        <span v-if="item.variant_name" style="color: #64748b;"> - {{ "{{ item.variant_name }}" }}</span>
+                        x {{ "{{ item.quantity }}" }}
+                    </span>
+                    <span style="font-weight: 600;">NT$ {{ "{{ formatPrice(item.price * item.quantity) }}" }}</span>
+                </div>
+                <div style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; font-weight: bold; font-size: 0.95rem;">
+                    <span>總金額：</span>
+                    <span style="color: #e11d48;">NT$ {{ "{{ formatPrice(cartTotal) }}" }}</span>
+                </div>
+            </div>
+        </div>
+
+        <span slot="footer" class="dialog-footer" style="display: flex; gap: 8px;">
+            <el-button @click="showCheckout = false" style="flex: 1;">返回修改</el-button>
+            <el-button type="primary" :loading="submitting" @click="submitOrder" style="flex: 1;">
+                確認送出訂單
+            </el-button>
+        </span>
+    </el-dialog>
+
+    <!-- 訂單成立成功對話框 (Dialog) -->
+    <el-dialog
+        :visible.sync="showSuccess"
+        width="92%"
+        :close-on-click-modal="false"
+        :show-close="false"
+        custom-class="success-dialog">
+        
+        <div class="order-success-container">
+            <div class="success-icon"><i class="el-icon-circle-check"></i></div>
+            <div class="success-title">訂單已成功成立！</div>
+            <div class="success-subtitle">訂單編號：<strong>{{ "{{ orderNo }}" }}</strong></div>
+
+            <!-- 純文字摘要框 -->
+            <pre class="order-summary-box">{{ "{{ orderSummary }}" }}</pre>
+
+            <!-- 操作引導說明 -->
+            <div class="guide-box">
+                <p><strong>📌 後續動作指引：</strong></p>
+                <p>① 點擊下方「📋 複製訂單資訊」按鈕</p>
+                <p>② 開啟 LINE，找到店家／管理人聊天室</p>
+                <p>③ 貼上訊息並送出，以便為您安排出貨！</p>
+            </div>
+
+            <div v-if="copied" class="copy-success-hint">
+                <i class="el-icon-check"></i> 已複製到剪貼簿！請至 LINE 貼上
+            </div>
+
+            <el-button type="success" class="btn-copy-summary" @click="copyOrderSummary">
+                <i class="el-icon-document-copy"></i> 複製訂單資訊
+            </el-button>
+
+            <el-button class="btn-continue-shopping" @click="continueShopping">
+                繼續購物
+            </el-button>
+        </div>
+    </el-dialog>
+
+</div>
+
+<script>
+new Vue({
+    el: '#shopApp',
+    data() {
+        return {
+            products: [],
+            cart: [],
+            loading: true,
+            showCart: false,
+            showCheckout: false,
+            showSuccess: false,
+            customerNote: '',
+            orderNo: '',
+            orderSummary: '',
+            copied: false,
+            submitting: false,
+            // 商品詳情
+            showDetail: false,
+            detailProduct: null,
+            selectedVariant: null,
+            detailQty: 1
+        };
+    },
+    computed: {
+        cartCount() {
+            return this.cart.reduce((sum, item) => sum + item.quantity, 0);
+        },
+        cartTotal() {
+            return this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        },
+        detailDisplayImage() {
+            if (!this.detailProduct) return '/static/shop/products/default.jpg';
+            // 若選中規格有圖片則用規格圖，否則用主品項圖
+            if (this.selectedVariant && this.selectedVariant.image_file) {
+                return '/static/shop/products/' + this.selectedVariant.image_file;
+            }
+            return '/static/shop/products/' + (this.detailProduct.image_file || 'default.jpg');
+        }
+    },
+    created() {
+        this.fetchProducts();
+        this.loadCart();
+    },
+    methods: {
+        fetchProducts() {
+            this.loading = true;
+            axios.get('/shop/api/products')
+                .then(res => {
+                    this.products = res.data;
+                })
+                .catch(err => {
+                    console.error('取得商品失敗:', err);
+                    this.$message.error('商品列表載入失敗');
+                })
+                .finally(() => {
+                    this.loading = false;
+                });
+        },
+        // --- 商品詳情 ---
+        openProductDetail(product) {
+            this.detailProduct = product;
+            this.selectedVariant = null;
+            this.detailQty = 1;
+
+            // 若只有一個規格，自動選中
+            if (product.variants && product.variants.length === 1 && product.variants[0].stock > 0) {
+                this.selectedVariant = product.variants[0];
+            }
+
+            this.showDetail = true;
+        },
+        selectVariant(v) {
+            if (v.stock <= 0) return;
+            this.selectedVariant = v;
+            this.detailQty = 1;
+        },
+        addToCartFromDetail() {
+            if (!this.selectedVariant) {
+                this.$message.warning('請先選擇規格');
+                return;
+            }
+            if (this.selectedVariant.stock <= 0) {
+                this.$message.warning('此規格已售完');
+                return;
+            }
+
+            const v = this.selectedVariant;
+            const p = this.detailProduct;
+            const existing = this.cart.find(item => item.variant_id === v.id);
+
+            if (existing) {
+                existing.quantity += this.detailQty;
+            } else {
+                this.cart.push({
+                    product_id: p.id,
+                    variant_id: v.id,
+                    name: p.name,
+                    variant_name: v.name,
+                    price: v.price,
+                    image_file: v.image_file || p.image_file,
+                    quantity: this.detailQty
+                });
+            }
+            this.saveCart();
+            this.$message({
+                message: `✅ 已加入「${p.name} - ${v.name}」(x${this.detailQty}) 至購物車，可繼續選擇其他規格`,
+                type: 'success',
+                duration: 2000
+            });
+            // 保持在原頁面，數量重置為 1
+            this.detailQty = 1;
+        },
+        openCartFromDetail() {
+            this.showDetail = false;
+            this.showCart = true;
+        },
+        // --- 購物車 ---
+        loadCart() {
+            try {
+                const saved = localStorage.getItem('msite_shop_cart');
+                if (saved) {
+                    this.cart = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('讀取購物車失敗:', e);
+                this.cart = [];
+            }
+        },
+        saveCart() {
+            try {
+                localStorage.setItem('msite_shop_cart', JSON.stringify(this.cart));
+            } catch (e) {
+                console.error('儲存購物車失敗:', e);
+            }
+        },
+        removeFromCart(index) {
+            this.cart.splice(index, 1);
+            this.saveCart();
+        },
+        openCheckoutDialog() {
+            if (this.cart.length === 0) return;
+            this.showCart = false;
+            this.showCheckout = true;
+        },
+        submitOrder() {
+            if (this.cart.length === 0) {
+                this.$message.warning('購物車內無商品');
+                return;
+            }
+            this.submitting = true;
+
+            const payload = {
+                note: this.customerNote,
+                items: this.cart.map(item => ({
+                    variant_id: item.variant_id,
+                    quantity: item.quantity
+                }))
+            };
+
+            axios.post('/shop/api/checkout', payload)
+                .then(res => {
+                    if (res.data.success) {
+                        this.orderNo = res.data.order_no;
+                        this.orderSummary = res.data.order_summary;
+                        this.showCheckout = false;
+                        this.showSuccess = true;
+                        this.copied = false;
+                        
+                        // 清空購物車與備註
+                        this.cart = [];
+                        this.saveCart();
+                        this.customerNote = '';
+
+                        // 重新載入商品（庫存已更新）
+                        this.fetchProducts();
+                    } else {
+                        this.$message.error(res.data.message || '成立訂單失敗');
+                    }
+                })
+                .catch(err => {
+                    const msg = (err.response && err.response.data && err.response.data.message) || '成立訂單失敗，請稍後再試';
+                    this.$message.error(msg);
+                })
+                .finally(() => {
+                    this.submitting = false;
+                });
+        },
+        copyOrderSummary() {
+            if (!this.orderSummary) return;
+
+            const textToCopy = this.orderSummary;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToCopy)
+                    .then(() => {
+                        this.copied = true;
+                        this.$message.success('訂單資訊已成功複製到剪貼簿！');
+                    })
+                    .catch(err => {
+                        this.fallbackCopyText(textToCopy);
+                    });
+            } else {
+                this.fallbackCopyText(textToCopy);
+            }
+        },
+        fallbackCopyText(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                this.copied = true;
+                this.$message.success('訂單資訊已成功複製到剪貼簿！');
+            } catch (err) {
+                console.error('複製失敗:', err);
+                this.$message.warning('請手動長按選取上方內容進行複製');
+            }
+            document.body.removeChild(textArea);
+        },
+        continueShopping() {
+            this.showSuccess = false;
+            this.orderSummary = '';
+            this.orderNo = '';
+            this.copied = false;
+        },
+        scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+        formatPrice(val) {
+            if (val === null || val === undefined) return '0';
+            return Number(val).toLocaleString('zh-TW');
+        },
+        onImageError(e) {
+            e.target.src = '/static/shop/products/default.jpg';
+        }
+    }
+});
+</script>
+
+{% endblock content %}

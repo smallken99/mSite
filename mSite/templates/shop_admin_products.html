@@ -1,0 +1,454 @@
+{% extends "layout.html" %}
+{% block container_class %}container{% endblock %}
+{% block main_col_class %}col-12{% endblock %}
+{% block sidebar %}{% endblock %}
+{% block content %}
+
+<div id="adminProductApp" class="container-fluid" style="padding: 0;">
+
+    <!-- 頁籤導覽列 -->
+    <div style="margin-bottom: 20px; border-bottom: 2px solid #5f788a; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <h3 style="margin: 0; color: #444;">🛒 商城管理</h3>
+            <el-button-group size="small">
+                <el-button type="primary" icon="el-icon-goods">商品管理</el-button>
+                <el-button @click="goTo('{{ url_for('shop.admin_orders') }}')" icon="el-icon-tickets">訂單管理</el-button>
+                <el-button @click="goTo('{{ url_for('shop.admin_settings') }}')" icon="el-icon-setting">商城設定</el-button>
+            </el-button-group>
+        </div>
+        <div>
+            <el-button type="success" size="small" icon="el-icon-plus" @click="openAddDialog">
+                新增商品
+            </el-button>
+            <el-button size="small" icon="el-icon-view" @click="openShopFront" type="info" plain>
+                預覽前台
+            </el-button>
+        </div>
+    </div>
+
+    <!-- 商品列表表格 -->
+    <el-table
+        :data="products"
+        v-loading="loading"
+        stripe
+        border
+        style="width: 100%; font-size: 14px;">
+        
+        <el-table-column label="圖片" width="90" align="center">
+            <template slot-scope="scope">
+                <img :src="'/static/shop/products/' + (scope.row.image_file || 'default.jpg')"
+                     style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;"
+                     @error="onImageError($event)">
+            </template>
+        </el-table-column>
+
+        <el-table-column prop="name" label="商品名稱" min-width="160">
+            <template slot-scope="scope">
+                <div style="font-weight: 600;">{{ "{{ scope.row.name }}" }}</div>
+                <div v-if="scope.row.description" style="font-size: 12px; color: #888;">{{ "{{ scope.row.description }}" }}</div>
+            </template>
+        </el-table-column>
+
+        <el-table-column label="規格數" width="80" align="center">
+            <template slot-scope="scope">
+                <el-tag size="small" type="info">{{ "{{ (scope.row.variants || []).length }}" }} 種</el-tag>
+            </template>
+        </el-table-column>
+
+        <el-table-column label="售價" width="140" sortable align="right">
+            <template slot-scope="scope">
+                <span v-if="scope.row.price === scope.row.price_max" style="color: #e11d48; font-weight: bold;">
+                    NT$ {{ "{{ formatPrice(scope.row.price) }}" }}
+                </span>
+                <span v-else style="color: #e11d48; font-weight: bold;">
+                    {{ "{{ formatPrice(scope.row.price) }}" }} ~ {{ "{{ formatPrice(scope.row.price_max) }}" }}
+                </span>
+            </template>
+        </el-table-column>
+
+        <el-table-column prop="stock" label="總庫存" width="90" sortable align="center">
+        </el-table-column>
+
+        <el-table-column prop="sort_order" label="排序" width="80" sortable align="center">
+        </el-table-column>
+
+        <el-table-column label="上架狀態" width="100" align="center">
+            <template slot-scope="scope">
+                <el-switch
+                    v-model="scope.row.is_active"
+                    active-color="#13ce66"
+                    inactive-color="#ff4949"
+                    @change="toggleStatus(scope.row)">
+                </el-switch>
+            </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="140" align="center">
+            <template slot-scope="scope">
+                <el-button size="mini" type="primary" icon="el-icon-edit" circle @click="openEditDialog(scope.row)"></el-button>
+                <el-button size="mini" type="danger" icon="el-icon-delete" circle @click="deleteProduct(scope.row)"></el-button>
+            </template>
+        </el-table-column>
+
+    </el-table>
+
+    <!-- 新增 / 編輯商品 Dialog -->
+    <el-dialog
+        :title="isEdit ? '編輯商品' : '新增商品'"
+        :visible.sync="dialogVisible"
+        width="760px"
+        :close-on-click-modal="false"
+        top="3vh">
+        
+        <el-form :model="form" ref="productForm" label-width="90px" size="small">
+            <el-form-item label="商品名稱" required>
+                <el-input v-model="form.name" placeholder="請輸入商品名稱"></el-input>
+            </el-form-item>
+
+            <el-form-item label="商品描述">
+                <el-input type="textarea" :rows="2" v-model="form.description" placeholder="簡短規格或描述 (選填)"></el-input>
+            </el-form-item>
+
+            <el-form-item label="顯示排序">
+                <el-input-number v-model="form.sort_order" :step="1" style="width: 100%;" placeholder="數字越小越靠前"></el-input-number>
+            </el-form-item>
+
+            <el-form-item label="商品主圖">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img v-if="previewImageUrl" :src="previewImageUrl"
+                         style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                    <input type="file" ref="imageInput" accept="image/*" @change="onFileChange">
+                </div>
+                <div style="font-size: 12px; color: #888; margin-top: 4px;">商品在列表時的封面大圖 (支援 JPG、PNG)</div>
+            </el-form-item>
+
+            <el-form-item label="是否上架">
+                <el-switch v-model="form.is_active" active-text="上架中" inactive-text="下架"></el-switch>
+            </el-form-item>
+
+            <!-- 規格管理區 -->
+            <el-form-item label="商品規格">
+                <div style="border: 1px solid #dcdfe6; border-radius: 6px; padding: 12px; background: #fafbfc;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 600; color: #333;">規格列表 (每個規格可有專屬圖片)</span>
+                        <el-button type="primary" size="mini" icon="el-icon-plus" @click="addVariantRow">新增規格</el-button>
+                    </div>
+
+                    <el-table :data="form.variants" border size="mini" style="width: 100%;" v-if="form.variants.length > 0">
+                        <el-table-column label="規格圖片" width="90" align="center">
+                            <template slot-scope="scope">
+                                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                    <img :src="getVariantImageSrc(scope.row)"
+                                         style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; cursor: pointer;"
+                                         :title="scope.row.image_file ? '點擊更換圖片' : '尚未設定圖片（將使用主圖）'"
+                                         @click="triggerVariantUpload(scope.$index)">
+                                    <input type="file"
+                                           :ref="'variantFileInput_' + scope.$index"
+                                           style="display: none;"
+                                           accept="image/*"
+                                           @change="onVariantFileUploaded(scope.$index, $event)">
+                                    <div style="display: flex; gap: 2px;">
+                                        <el-button type="text" size="mini" style="padding: 0; font-size: 11px;" @click="triggerVariantUpload(scope.$index)">
+                                            {{ "{{ scope.row.image_file ? '更換' : '上傳' }}" }}
+                                        </el-button>
+                                        <el-button v-if="scope.row.image_file" type="text" size="mini" style="padding: 0; font-size: 11px; color: #999;" @click="scope.row.image_file = ''">
+                                            清除
+                                        </el-button>
+                                    </div>
+                                </div>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="規格名稱" min-width="120">
+                            <template slot-scope="scope">
+                                <el-input v-model="scope.row.name" size="mini" placeholder="如: 黑色 XL"></el-input>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="售價 (NT$)" width="125" align="center">
+                            <template slot-scope="scope">
+                                <el-input-number v-model="scope.row.price" :min="0" :precision="0" :step="10" size="mini" controls-position="right" style="width: 100%;"></el-input-number>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="庫存" width="115" align="center">
+                            <template slot-scope="scope">
+                                <el-input-number v-model="scope.row.stock" :min="0" :step="1" size="mini" controls-position="right" style="width: 100%;"></el-input-number>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="啟用" width="65" align="center">
+                            <template slot-scope="scope">
+                                <el-switch v-model="scope.row.is_active" size="mini"></el-switch>
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="" width="50" align="center">
+                            <template slot-scope="scope">
+                                <el-button type="text" icon="el-icon-delete" style="color: #ef4444;" @click="removeVariantRow(scope.$index)"
+                                           :disabled="form.variants.length <= 1"></el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+
+                    <div v-else style="text-align: center; color: #999; padding: 16px 0;">
+                        <p>尚無規格，請點擊「新增規格」按鈕新增</p>
+                    </div>
+                </div>
+            </el-form-item>
+        </el-form>
+
+        <span slot="footer" class="dialog-footer">
+            <el-button @click="dialogVisible = false">取消</el-button>
+            <el-button type="primary" :loading="saving" @click="saveProduct">儲存</el-button>
+        </span>
+    </el-dialog>
+
+</div>
+
+<script>
+new Vue({
+    el: '#adminProductApp',
+    data() {
+        return {
+            products: [],
+            loading: false,
+            dialogVisible: false,
+            isEdit: false,
+            saving: false,
+            form: {
+                id: null,
+                name: '',
+                description: '',
+                sort_order: 0,
+                is_active: true,
+                variants: [
+                    { id: null, name: '預設', price: 100, stock: 99, image_file: '', is_active: true }
+                ]
+            },
+            selectedFile: null,
+            previewImageUrl: ''
+        };
+    },
+    created() {
+        this.fetchProducts();
+    },
+    methods: {
+        fetchProducts() {
+            this.loading = true;
+            axios.get('/shop/admin/api/products')
+                .then(res => {
+                    this.products = res.data;
+                })
+                .catch(err => {
+                    console.error(err);
+                    this.$message.error('載入商品列表失敗');
+                })
+                .finally(() => {
+                    this.loading = false;
+                });
+        },
+        openAddDialog() {
+            this.isEdit = false;
+            this.form = {
+                id: null,
+                name: '',
+                description: '',
+                sort_order: 0,
+                is_active: true,
+                variants: [
+                    { id: null, name: '預設', price: 100, stock: 99, image_file: '', is_active: true }
+                ]
+            };
+            this.selectedFile = null;
+            this.previewImageUrl = '';
+            if (this.$refs.imageInput) this.$refs.imageInput.value = '';
+            this.dialogVisible = true;
+        },
+        openEditDialog(row) {
+            this.isEdit = true;
+            this.form = {
+                id: row.id,
+                name: row.name,
+                description: row.description || '',
+                sort_order: row.sort_order,
+                is_active: row.is_active,
+                variants: (row.variants || []).map(v => ({
+                    id: v.id,
+                    name: v.name,
+                    price: v.price,
+                    stock: v.stock,
+                    image_file: v.image_file || '',
+                    is_active: v.is_active
+                }))
+            };
+            // 若沒有任何規格，補一筆預設的
+            if (this.form.variants.length === 0) {
+                this.form.variants.push({ id: null, name: '預設', price: 0, stock: 0, image_file: '', is_active: true });
+            }
+            this.selectedFile = null;
+            this.previewImageUrl = '/static/shop/products/' + (row.image_file || 'default.jpg');
+            if (this.$refs.imageInput) this.$refs.imageInput.value = '';
+            this.dialogVisible = true;
+        },
+        addVariantRow() {
+            this.form.variants.push({
+                id: null,
+                name: '',
+                price: 0,
+                stock: 0,
+                image_file: '',
+                is_active: true
+            });
+        },
+        removeVariantRow(index) {
+            if (this.form.variants.length <= 1) {
+                this.$message.warning('至少須保留一個規格');
+                return;
+            }
+            this.form.variants.splice(index, 1);
+        },
+        onFileChange(e) {
+            const file = e.target.files[0];
+            if (file) {
+                this.selectedFile = file;
+                this.previewImageUrl = URL.createObjectURL(file);
+            }
+        },
+        saveProduct() {
+            if (!this.form.name.trim()) {
+                this.$message.warning('請輸入商品名稱');
+                return;
+            }
+
+            // 驗證規格
+            for (let i = 0; i < this.form.variants.length; i++) {
+                const v = this.form.variants[i];
+                if (!v.name || !v.name.trim()) {
+                    this.$message.warning(`第 ${i + 1} 個規格的名稱不能為空`);
+                    return;
+                }
+            }
+
+            this.saving = true;
+            const formData = new FormData();
+            formData.append('name', this.form.name.trim());
+            formData.append('description', this.form.description);
+            formData.append('sort_order', this.form.sort_order);
+            formData.append('is_active', this.form.is_active ? 'true' : 'false');
+            formData.append('variants', JSON.stringify(this.form.variants));
+
+            if (this.selectedFile) {
+                formData.append('image', this.selectedFile);
+            }
+
+            const url = this.isEdit
+                ? `/shop/admin/api/products/${this.form.id}`
+                : '/shop/admin/api/products';
+
+            axios.post(url, formData)
+                .then(res => {
+                    if (res.data.success) {
+                        this.$message.success(this.isEdit ? '商品更新成功' : '商品新增成功');
+                        this.dialogVisible = false;
+                        this.fetchProducts();
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    this.$message.error('儲存失敗');
+                })
+                .finally(() => {
+                    this.saving = false;
+                });
+        },
+        toggleStatus(row) {
+            axios.post(`/shop/admin/api/products/${row.id}`, {
+                is_active: row.is_active
+            })
+            .then(res => {
+                this.$message.success(`已${row.is_active ? '上架' : '下架'}商品`);
+            })
+            .catch(err => {
+                row.is_active = !row.is_active; // 復原
+                this.$message.error('更新狀態失敗');
+            });
+        },
+        deleteProduct(row) {
+            this.$confirm(`確定要刪除商品「${row.name}」嗎？此操作會同時刪除所有規格。`, '警告', {
+                confirmButtonText: '確定刪除',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(() => {
+                axios.delete(`/shop/admin/api/products/${row.id}`)
+                    .then(res => {
+                        this.$message.success('商品已刪除');
+                        this.fetchProducts();
+                    })
+                    .catch(err => {
+                        this.$message.error('刪除失敗');
+                    });
+            }).catch(() => {});
+        },
+        openShopFront() {
+            window.open('/shop', '_blank');
+        },
+        formatPrice(val) {
+            if (val === null || val === undefined) return '0';
+            return Number(val).toLocaleString('zh-TW');
+        },
+        onImageError(e) {
+            e.target.src = '/static/shop/products/default.jpg';
+        },
+        getVariantImageSrc(variant) {
+            if (variant.image_file) {
+                return '/static/shop/products/' + variant.image_file;
+            }
+            if (this.previewImageUrl) {
+                return this.previewImageUrl;
+            }
+            return '/static/shop/products/default.jpg';
+        },
+        triggerVariantUpload(index) {
+            const fileInput = this.$refs['variantFileInput_' + index];
+            if (fileInput) {
+                // 若 Vue refs 取得的是 array 則取第一個
+                const input = Array.isArray(fileInput) ? fileInput[0] : fileInput;
+                if (input) input.click();
+            }
+        },
+        onVariantFileUploaded(index, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const loadingInstance = this.$loading({
+                lock: true,
+                text: '正在上傳規格圖片...',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.5)'
+            });
+
+            axios.post('/shop/admin/api/upload_image', formData)
+                .then(res => {
+                    if (res.data.success) {
+                        this.$set(this.form.variants[index], 'image_file', res.data.image_file);
+                        this.$message.success('規格圖片上傳成功');
+                    } else {
+                        this.$message.error(res.data.message || '上傳失敗');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    this.$message.error('上傳圖片失敗');
+                })
+                .finally(() => {
+                    loadingInstance.close();
+                    event.target.value = '';
+                });
+        },
+        goTo(url) {
+            window.location.href = url;
+        }
+    }
+});
+</script>
+
+{% endblock content %}

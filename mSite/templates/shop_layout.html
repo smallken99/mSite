@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='myicon.ico') }}">
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <!-- Element UI CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <!-- Shop Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='shop/shop.css') }}">
+    
+    <!-- Vue 2 -->
+    <script src="{{ url_for('static', filename='vue.js') }}"></script>
+    <!-- Element UI JS -->
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <!-- Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@0.21.1/dist/axios.min.js"></script>
+
+    <title>{% if title %}{{ title }} - {% endif %}{{ shop_name or '棋新商城' }}</title>
+</head>
+<body class="shop-body">
+
+    {% block content %}{% endblock %}
+
+</body>
+</html>

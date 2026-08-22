@@ -1,0 +1,233 @@
+{% extends "layout.html" %}
+{% block container_class %}container{% endblock %}
+{% block main_col_class %}col-12{% endblock %}
+{% block sidebar %}{% endblock %}
+{% block content %}
+
+<div id="adminOrderApp" class="container-fluid" style="padding: 0;">
+
+    <!-- 頁籤導覽列 -->
+    <div style="margin-bottom: 20px; border-bottom: 2px solid #5f788a; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <h3 style="margin: 0; color: #444;">🛒 商城管理</h3>
+            <el-button-group size="small">
+                <el-button @click="goTo('{{ url_for('shop.admin_products') }}')" icon="el-icon-goods">商品管理</el-button>
+                <el-button type="primary" icon="el-icon-tickets">訂單管理</el-button>
+                <el-button @click="goTo('{{ url_for('shop.admin_settings') }}')" icon="el-icon-setting">商城設定</el-button>
+            </el-button-group>
+        </div>
+        <div>
+            <!-- 狀態篩選 -->
+            <el-select v-model="statusFilter" placeholder="狀態篩選" size="small" style="width: 140px;" @change="fetchOrders">
+                <el-option label="全部狀態" value=""></el-option>
+                <el-option label="待確認" value="pending"></el-option>
+                <el-option label="已確認" value="confirmed"></el-option>
+                <el-option label="已取消" value="cancelled"></el-option>
+            </el-select>
+            <el-button size="small" icon="el-icon-refresh" @click="fetchOrders"></el-button>
+        </div>
+    </div>
+
+    <!-- 訂單列表表格 -->
+    <el-table
+        :data="orders"
+        v-loading="loading"
+        stripe
+        border
+        style="width: 100%; font-size: 14px;">
+        
+        <el-table-column prop="order_no" label="訂單編號" width="160">
+            <template slot-scope="scope">
+                <strong style="color: #1e293b;">{{ "{{ scope.row.order_no }}" }}</strong>
+            </template>
+        </el-table-column>
+
+        <el-table-column prop="created_at" label="成立時間" width="150" sortable align="center">
+        </el-table-column>
+
+        <el-table-column prop="customer_note" label="備註" min-width="150">
+            <template slot-scope="scope">
+                <span v-if="scope.row.customer_note">{{ "{{ scope.row.customer_note }}" }}</span>
+                <span v-else style="color: #aaa;">—</span>
+            </template>
+        </el-table-column>
+
+        <el-table-column prop="item_count" label="品項數" width="80" align="center">
+            <template slot-scope="scope">
+                <el-tag size="small" type="info">{{ "{{ scope.row.item_count }}" }} 種</el-tag>
+            </template>
+        </el-table-column>
+
+        <el-table-column prop="total_amount" label="總金額" width="120" sortable align="right">
+            <template slot-scope="scope">
+                <span style="color: #e11d48; font-weight: bold;">NT$ {{ "{{ formatPrice(scope.row.total_amount) }}" }}</span>
+            </template>
+        </el-table-column>
+
+        <el-table-column prop="status" label="狀態" width="110" align="center">
+            <template slot-scope="scope">
+                <el-tag :type="getStatusTagType(scope.row.status)" size="medium">
+                    {{ "{{ getStatusLabel(scope.row.status) }}" }}
+                </el-tag>
+            </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="120" align="center">
+            <template slot-scope="scope">
+                <el-button size="mini" type="primary" plain @click="viewDetail(scope.row)">
+                    詳情
+                </el-button>
+            </template>
+        </el-table-column>
+
+    </el-table>
+
+    <!-- 訂單詳情 Dialog -->
+    <el-dialog
+        title="📋 訂單詳細資訊"
+        :visible.sync="detailVisible"
+        width="600px"
+        :close-on-click-modal="false">
+        
+        <div v-if="currentOrder">
+            <div style="background-color: #f8fafc; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <div><strong>訂單編號：</strong><span style="font-size: 16px; color: #1e293b; font-weight: bold;">{{ "{{ currentOrder.order_no }}" }}</span></div>
+                    <div>
+                        <el-tag :type="getStatusTagType(currentOrder.status)">{{ "{{ getStatusLabel(currentOrder.status) }}" }}</el-tag>
+                    </div>
+                </div>
+                <div style="font-size: 13px; color: #64748b; margin-bottom: 6px;">
+                    <strong>成立時間：</strong>{{ "{{ currentOrder.created_at }}" }}
+                </div>
+                <div style="font-size: 13px; color: #64748b;">
+                    <strong>客戶備註：</strong>{{ "{{ currentOrder.customer_note || '無' }}" }}
+                </div>
+            </div>
+
+            <h5 style="margin-bottom: 8px; color: #333;">📦 訂購明細清單</h5>
+            <el-table :data="currentOrder.items" border size="small" style="width: 100%; margin-bottom: 16px;">
+                <el-table-column prop="product_name" label="品名" min-width="160">
+                    <template slot-scope="scope">
+                        <span>{{ "{{ scope.row.product_name }}" }}</span>
+                        <span v-if="scope.row.variant_name" style="color: #64748b;"> - {{ "{{ scope.row.variant_name }}" }}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="quantity" label="數量" width="70" align="center"></el-table-column>
+                <el-table-column prop="unit_price" label="單價" width="100" align="right">
+                    <template slot-scope="scope">
+                        NT$ {{ "{{ formatPrice(scope.row.unit_price) }}" }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="subtotal" label="小計" width="100" align="right">
+                    <template slot-scope="scope">
+                        <strong>NT$ {{ "{{ formatPrice(scope.row.subtotal) }}" }}</strong>
+                    </template>
+                </el-table-column>
+            </el-table>
+
+            <div style="text-align: right; font-size: 1.1rem; margin-bottom: 20px;">
+                <span>訂單總額：</span>
+                <span style="color: #e11d48; font-weight: bold; font-size: 1.3rem;">NT$ {{ "{{ formatPrice(currentOrder.total_amount) }}" }}</span>
+            </div>
+
+            <div style="border-top: 1px solid #eee; padding-top: 16px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <span style="font-weight: 600; margin-right: 8px;">更改狀態：</span>
+                    <el-select v-model="currentOrder.status" size="small" style="width: 120px;" @change="updateStatus(currentOrder)">
+                        <el-option label="待確認" value="pending"></el-option>
+                        <el-option label="已確認" value="confirmed"></el-option>
+                        <el-option label="已取消" value="cancelled"></el-option>
+                    </el-select>
+                </div>
+                <el-button @click="detailVisible = false" size="small">關閉</el-button>
+            </div>
+        </div>
+    </el-dialog>
+
+</div>
+
+<script>
+new Vue({
+    el: '#adminOrderApp',
+    data() {
+        return {
+            orders: [],
+            loading: false,
+            statusFilter: '',
+            detailVisible: false,
+            currentOrder: null
+        };
+    },
+    created() {
+        this.fetchOrders();
+    },
+    methods: {
+        fetchOrders() {
+            this.loading = true;
+            axios.get('/shop/admin/api/orders', {
+                params: { status: this.statusFilter }
+            })
+            .then(res => {
+                this.orders = res.data;
+            })
+            .catch(err => {
+                console.error(err);
+                this.$message.error('載入訂單失敗');
+            })
+            .finally(() => {
+                this.loading = false;
+            });
+        },
+        viewDetail(order) {
+            axios.get(`/shop/admin/api/orders/${order.id}`)
+                .then(res => {
+                    this.currentOrder = res.data;
+                    this.detailVisible = true;
+                })
+                .catch(err => {
+                    console.error(err);
+                    this.$message.error('讀取訂單詳情失敗');
+                });
+        },
+        updateStatus(order) {
+            axios.put(`/shop/admin/api/orders/${order.id}/status`, {
+                status: order.status
+            })
+            .then(res => {
+                this.$message.success('訂單狀態更新成功');
+                this.fetchOrders();
+            })
+            .catch(err => {
+                console.error(err);
+                this.$message.error('更新狀態失敗');
+            });
+        },
+        getStatusLabel(status) {
+            const map = {
+                'pending': '待確認',
+                'confirmed': '已確認',
+                'cancelled': '已取消'
+            };
+            return map[status] || status;
+        },
+        getStatusTagType(status) {
+            const map = {
+                'pending': 'warning',
+                'confirmed': 'success',
+                'cancelled': 'info'
+            };
+            return map[status] || '';
+        },
+        formatPrice(val) {
+            if (val === null || val === undefined) return '0';
+            return Number(val).toLocaleString('zh-TW');
+        },
+        goTo(url) {
+            window.location.href = url;
+        }
+    }
+});
+</script>
+
+{% endblock content %}

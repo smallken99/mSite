@@ -1,0 +1,144 @@
+{% extends "layout.html" %}
+{% block container_class %}container{% endblock %}
+{% block main_col_class %}col-12{% endblock %}
+{% block sidebar %}{% endblock %}
+{% block content %}
+
+<div id="adminSettingApp" class="container-fluid" style="padding: 0;">
+
+    <!-- 頁籤導覽列 -->
+    <div style="margin-bottom: 20px; border-bottom: 2px solid #5f788a; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <h3 style="margin: 0; color: #444;">🛒 商城管理</h3>
+            <el-button-group size="small">
+                <el-button @click="goTo('{{ url_for('shop.admin_products') }}')" icon="el-icon-goods">商品管理</el-button>
+                <el-button @click="goTo('{{ url_for('shop.admin_orders') }}')" icon="el-icon-tickets">訂單管理</el-button>
+                <el-button type="primary" icon="el-icon-setting">商城設定</el-button>
+            </el-button-group>
+        </div>
+    </div>
+
+    <!-- 設定卡片 -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="content-section" style="background: #ffffff; padding: 24px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h4 style="margin-bottom: 20px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                    ⚙️ 基本參數設定
+                </h4>
+
+                <el-form :model="form" label-width="140px" v-loading="loading">
+                    
+                    <el-form-item label="商城顯示名稱">
+                        <el-input v-model="form.shop_name" placeholder="例如：棋新商城" style="max-width: 360px;"></el-input>
+                        <div style="font-size: 12px; color: #888; margin-top: 4px;">顯示於前台標題列、訂單純文字摘要與郵件主旨。</div>
+                    </el-form-item>
+
+                    <el-form-item label="管理者通知 Email">
+                        <div style="display: flex; gap: 8px; max-width: 480px; align-items: center;">
+                            <el-input v-model="form.admin_email" placeholder="例如：manager@company.com" style="flex: 1;"></el-input>
+                            <el-button type="info" size="small" plain icon="el-icon-message" :loading="testingEmail" @click="testEmail">
+                                測試發信
+                            </el-button>
+                        </div>
+                        <div style="font-size: 12px; color: #888; margin-top: 4px;">當客戶於前台成立訂單時，系統會自動發送完整訂單通知信至此 Email (若未填寫則不發送)。</div>
+                    </el-form-item>
+
+                    <el-form-item style="margin-top: 30px;">
+                        <el-button type="primary" :loading="saving" icon="el-icon-check" @click="saveSettings">
+                            儲存設定
+                        </el-button>
+                    </el-form-item>
+
+                </el-form>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="content-section" style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h5 style="color: #475569; margin-bottom: 12px;">💡 運作說明</h5>
+                <ul style="padding-left: 18px; font-size: 13px; color: #64748b; line-height: 1.8;">
+                    <li>前台下單流程免登入，客戶可在手機上流暢挑選商品。</li>
+                    <li>成立訂單時，系統會立即生成純文字格式訂單明細，引導客戶一鍵複製貼至 LINE 給管理人。</li>
+                    <li>若有設定管理者 Email，後端會同步寄送格式化 HTML 訂單明細通知信。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+new Vue({
+    el: '#adminSettingApp',
+    data() {
+        return {
+            loading: false,
+            saving: false,
+            testingEmail: false,
+            form: {
+                shop_name: '棋新商城',
+                admin_email: ''
+            }
+        };
+    },
+    created() {
+        this.fetchSettings();
+    },
+    methods: {
+        fetchSettings() {
+            this.loading = true;
+            axios.get('/shop/admin/api/settings')
+                .then(res => {
+                    this.form.shop_name = res.data.shop_name || '棋新商城';
+                    this.form.admin_email = res.data.admin_email || '';
+                })
+                .catch(err => {
+                    console.error(err);
+                    this.$message.error('載入設定失敗');
+                })
+                .finally(() => {
+                    this.loading = false;
+                });
+        },
+        saveSettings() {
+            this.saving = true;
+            axios.put('/shop/admin/api/settings', this.form)
+                .then(res => {
+                    if (res.data.success) {
+                        this.$message.success('設定已成功儲存！');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    this.$message.error('儲存設定失敗');
+                })
+                .finally(() => {
+                    this.saving = false;
+                });
+        },
+        testEmail() {
+            if (!this.form.admin_email || !this.form.admin_email.trim()) {
+                this.$message.warning('請先輸入管理者 Email');
+                return;
+            }
+            this.testingEmail = true;
+            axios.post('/shop/admin/api/test_email', { email: this.form.admin_email.trim() })
+                .then(res => {
+                    this.$message.success(res.data.message || '測試郵件已成功送出！');
+                })
+                .catch(err => {
+                    const msg = (err.response && err.response.data && err.response.data.message) || '測試郵件發送失敗';
+                    this.$message.error(msg);
+                })
+                .finally(() => {
+                    this.testingEmail = false;
+                });
+        },
+        goTo(url) {
+            window.location.href = url;
+        }
+    }
+});
+</script>
+
+{% endblock content %}

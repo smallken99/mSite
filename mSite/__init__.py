@@ -16,7 +16,7 @@ mail = Mail()
 
 def create_app(config_class=Config):
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(config_class)
 
     db.init_app(app)
     bcrypt.init_app(app)
@@ -29,12 +29,14 @@ def create_app(config_class=Config):
     from mSite.transferFile.routes import trans
     from mSite.inventory.routes import inventory
     from mSite.cost.routes import cost
+    from mSite.shop.routes import shop
     app.register_blueprint(main)
     app.register_blueprint(users)
     app.register_blueprint(posts)
     app.register_blueprint(trans)
     app.register_blueprint(inventory)
     app.register_blueprint(cost)
+    app.register_blueprint(shop)
 
 
 

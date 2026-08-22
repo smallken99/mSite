@@ -1,6 +1,8 @@
 test.py
 config.py
 site.db
+instance/
+*.db
 tmp/
 **/__pycache__
-.venv/
+.venv/
