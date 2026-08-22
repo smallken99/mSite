@@ -66,8 +66,9 @@ git pull origin master
 /home/smallken/venv/bin/python migrate_add_variants.py
 
 # 4. 確保商品圖片目錄存在且具備正確寫入權限
-mkdir -p mSite/static/shop/products
-chmod -R 755 mSite/static/shop/products
+mkdir -p /home/smallken/mSite/mSite/static/shop/products
+chmod -R 775 /home/smallken/mSite/mSite/static/shop/products
+chown -R smallken:smallken /home/smallken/mSite/mSite/static/shop/products
 ```
 
 ---

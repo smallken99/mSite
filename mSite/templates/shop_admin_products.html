@@ -347,11 +347,21 @@ new Vue({
                         this.$message.success(this.isEdit ? '商品更新成功' : '商品新增成功');
                         this.dialogVisible = false;
                         this.fetchProducts();
+                    } else {
+                        this.$message.error(res.data.message || '儲存失敗');
                     }
                 })
                 .catch(err => {
                     console.error(err);
-                    this.$message.error('儲存失敗');
+                    let msg = '儲存失敗';
+                    if (err.response) {
+                        if (err.response.status === 413) {
+                            msg = '上傳圖片檔案過大 (請小於 10MB)';
+                        } else if (err.response.data && err.response.data.message) {
+                            msg = err.response.data.message;
+                        }
+                    }
+                    this.$message.error(msg);
                 })
                 .finally(() => {
                     this.saving = false;
@@ -416,6 +426,13 @@ new Vue({
             const file = event.target.files[0];
             if (!file) return;
 
+            // 限制檔案大小 15MB
+            if (file.size > 15 * 1024 * 1024) {
+                this.$message.error('圖片大小超過 15MB，請先壓縮後再上傳');
+                event.target.value = '';
+                return;
+            }
+
             const formData = new FormData();
             formData.append('image', file);
 
@@ -437,7 +454,17 @@ new Vue({
                 })
                 .catch(err => {
                     console.error(err);
-                    this.$message.error('上傳圖片失敗');
+                    let msg = '上傳圖片失敗';
+                    if (err.response) {
+                        if (err.response.status === 413) {
+                            msg = '圖片檔案過大 (413 Payload Too Large)，請壓縮後再上傳';
+                        } else if (err.response.data && err.response.data.message) {
+                            msg = err.response.data.message;
+                        } else {
+                            msg = `伺服器回應錯誤 (${err.response.status})`;
+                        }
+                    }
+                    this.$message.error(msg);
                 })
                 .finally(() => {
                     loadingInstance.close();

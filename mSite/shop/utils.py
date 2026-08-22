@@ -1,7 +1,7 @@
 import os
 import secrets
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageOps
 from flask import current_app
 from flask_mail import Message
 from mSite import db, mail
@@ -39,24 +39,36 @@ def generate_order_no():
 
 
 def save_product_image(form_picture):
-    """儲存上傳之商品圖片並回傳隨機檔名"""
+    """儲存上傳之商品圖片並回傳隨機檔名（統一轉為高品質 JPEG 格式）"""
     random_hex = secrets.token_hex(8)
-    _, f_ext = os.path.splitext(form_picture.filename)
-    if not f_ext:
-        f_ext = '.jpg'
-    picture_fn = random_hex + f_ext.lower()
+    picture_fn = f"{random_hex}.jpg"
     
     upload_dir = os.path.join(current_app.root_path, 'static', 'shop', 'products')
-    os.makedirs(upload_dir, exist_ok=True)
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+    except Exception as e:
+        current_app.logger.warning(f"建立圖片目錄警告: {e}")
+
     picture_path = os.path.join(upload_dir, picture_fn)
 
     # 縮圖至 800x800 以內保持比例
     output_size = (800, 800)
     i = Image.open(form_picture)
-    if i.mode in ('RGBA', 'P'):
+
+    # 自動修正 EXIF 方向（如手機直拍）
+    try:
+        i = ImageOps.exif_transpose(i)
+    except Exception:
+        pass
+
+    # 確保轉換為 RGB 模式
+    if i.mode != 'RGB':
         i = i.convert('RGB')
-    i.thumbnail(output_size)
-    i.save(picture_path, quality=85)
+
+    # 高品質縮圖
+    resample_filter = getattr(Image, 'Resampling', Image).LANCZOS if hasattr(Image, 'Resampling') else Image.ANTIALIAS
+    i.thumbnail(output_size, resample_filter)
+    i.save(picture_path, format='JPEG', quality=85, optimize=True)
 
     return picture_fn
 

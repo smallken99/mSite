@@ -498,6 +498,7 @@ def admin_upload_image():
             'image_url': f'/static/shop/products/{filename}'
         })
     except Exception as e:
+        current_app.logger.error(f"上傳圖片失敗: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': f'圖片處理失敗: {str(e)}'}), 500
 
 
