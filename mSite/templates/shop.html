@@ -9,7 +9,7 @@
             <span>🏪</span>
             <span>{{ shop_name or '棋新商城' }}</span>
         </a>
-        <button class="cart-badge-btn" @click="showCart = true" aria-label="購物車">
+        <button class="cart-badge-btn" :class="{'btn-cart-bumping': isCartBumping}" @click="showCart = true" aria-label="購物車">
             <i class="el-icon-shopping-cart-2"></i>
             <span v-if="cartCount > 0" class="badge-count">{{ "{{ cartCount }}" }}</span>
         </button>
@@ -211,14 +211,23 @@
 
             <!-- 3. 底部固定操作列 -->
             <div class="sku-footer">
-                <el-button type="info"
-                           plain
-                           class="btn-sku-cart"
-                           :disabled="cartCount === 0"
-                           @click="openCartFromDetail">
-                    <i class="el-icon-shopping-cart-2"></i>
-                    <span>購物車 ({{ "{{ cartCount }}" }})</span>
-                </el-button>
+                <div class="sku-cart-btn-wrapper">
+                    <!-- 浮動漂浮 +N 提示 -->
+                    <transition name="float-up">
+                        <span v-if="showCartFloatBadge" class="cart-float-badge">+{{ "{{ addedQty }}" }}</span>
+                    </transition>
+                    <button type="button"
+                            class="btn-sku-cart"
+                            :class="{
+                                'has-items': cartCount > 0,
+                                'btn-cart-bumping': isCartBumping
+                            }"
+                            :disabled="cartCount === 0"
+                            @click="openCartFromDetail">
+                        <i class="el-icon-shopping-cart-2 cart-icon-anim"></i>
+                        <span>購物車 (<span class="cart-count-num">{{ "{{ cartCount }}" }}</span>)</span>
+                    </button>
+                </div>
                 <el-button type="primary"
                            class="btn-sku-add"
                            :disabled="!selectedVariant || (selectedVariant && selectedVariant.stock <= 0)"
@@ -437,6 +446,10 @@ new Vue({
             previewImageTitle: '',
             // Tab 切換
             activeTab: 'products',
+            // 購物車按鈕動畫連動
+            isCartBumping: false,
+            showCartFloatBadge: false,
+            addedQty: 1,
             // 公告
             announcementImageUrl: '',
             announcementVersion: '',
@@ -541,10 +554,11 @@ new Vue({
 
             const v = this.selectedVariant;
             const p = this.detailProduct;
+            const currentQty = this.detailQty;
             const existing = this.cart.find(item => item.variant_id === v.id);
 
             if (existing) {
-                existing.quantity += this.detailQty;
+                existing.quantity += currentQty;
             } else {
                 this.cart.push({
                     product_id: p.id,
@@ -553,12 +567,31 @@ new Vue({
                     variant_name: v.name,
                     price: v.price,
                     image_file: v.image_file || p.image_file,
-                    quantity: this.detailQty
+                    quantity: currentQty
                 });
             }
             this.saveCart();
+
+            // 觸發購物車按鈕動畫與顏色連動 (+N 浮動標籤 & 彈跳脈衝)
+            this.addedQty = currentQty;
+            this.showCartFloatBadge = true;
+            this.isCartBumping = false;
+            this.$nextTick(() => {
+                this.isCartBumping = true;
+            });
+
+            if (this.cartBumpTimer) clearTimeout(this.cartBumpTimer);
+            this.cartBumpTimer = setTimeout(() => {
+                this.isCartBumping = false;
+            }, 800);
+
+            if (this.cartFloatTimer) clearTimeout(this.cartFloatTimer);
+            this.cartFloatTimer = setTimeout(() => {
+                this.showCartFloatBadge = false;
+            }, 850);
+
             this.$message({
-                message: `✅ 已加入「${p.name} - ${v.name}」(x${this.detailQty}) 至購物車，可繼續選擇其他規格`,
+                message: `✅ 已加入「${p.name} - ${v.name}」(x${currentQty}) 至購物車，可繼續選擇其他規格`,
                 type: 'success',
                 duration: 2000
             });
