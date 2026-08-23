@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 #from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from itsdangerous import TimedSerializer as Serializer
 from flask import current_app
 from mSite import db, login_manager
 from flask_login import UserMixin
+
+TW_TZ = timezone(timedelta(hours=8))
+
+def get_tw_now():
+    return datetime.now(TW_TZ).replace(tzinfo=None)
 
 
 @login_manager.user_loader
@@ -186,7 +191,7 @@ class ShopOrder(db.Model):
     customer_note = db.Column(db.Text, default='')
     total_amount = db.Column(db.Float, nullable=False, default=0.0)
     status = db.Column(db.String(20), nullable=False, default='pending')
-    created_at = db.Column(db.DateTime, default=db.func.now())
+    created_at = db.Column(db.DateTime, default=get_tw_now)
 
     items = db.relationship('ShopOrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
 

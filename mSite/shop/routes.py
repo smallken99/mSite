@@ -2,7 +2,7 @@ import os
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required
 from mSite import db
-from mSite.models import ShopProduct, ProductVariant, ShopOrder, ShopOrderItem, ShopSetting
+from mSite.models import ShopProduct, ProductVariant, ShopOrder, ShopOrderItem, ShopSetting, get_tw_now
 from mSite.shop.utils import (
     generate_order_no,
     save_product_image,
@@ -127,7 +127,8 @@ def checkout():
         order_no=order_no,
         customer_note=note,
         total_amount=total_amount,
-        status='pending'
+        status='pending',
+        created_at=get_tw_now()
     )
     order.items = order_items
 

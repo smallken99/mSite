@@ -5,7 +5,7 @@ from PIL import Image, ImageOps
 from flask import current_app
 from flask_mail import Message
 from mSite import db, mail
-from mSite.models import ShopOrder, ShopSetting
+from mSite.models import ShopOrder, ShopSetting, get_tw_now
 
 
 def get_shop_setting(key, default=''):
@@ -18,7 +18,7 @@ def get_shop_setting(key, default=''):
 
 def generate_order_no():
     """產生唯一訂單編號，格式：SH + YYYYMMDD + 3 位流水號 (例: SH20260821001)"""
-    today_str = datetime.now().strftime('%Y%m%d')
+    today_str = get_tw_now().strftime('%Y%m%d')
     prefix = f'SH{today_str}'
 
     latest_order = (ShopOrder.query
@@ -111,7 +111,7 @@ def build_order_summary_text(order, items, shop_name=None):
     if not shop_name:
         shop_name = get_shop_setting('shop_name', '棋新商城')
     
-    created_time_str = order.created_at.strftime('%Y/%m/%d %H:%M') if order.created_at else datetime.now().strftime('%Y/%m/%d %H:%M')
+    created_time_str = order.created_at.strftime('%Y/%m/%d %H:%M') if order.created_at else get_tw_now().strftime('%Y/%m/%d %H:%M')
 
     lines = [
         f"📋 {shop_name} — 訂單通知",
@@ -121,7 +121,7 @@ def build_order_summary_text(order, items, shop_name=None):
     ]
 
     if order.customer_note and order.customer_note.strip():
-        lines.append(f"📝 備註：{order.customer_note.strip()}")
+        lines.append(f"🚚 寄送方式：{order.customer_note.strip()}")
 
     lines.append("")
     lines.append("──── 訂單明細 ────")
@@ -144,7 +144,7 @@ def build_order_email_html(order, items, shop_name=None):
     if not shop_name:
         shop_name = get_shop_setting('shop_name', '棋新商城')
     
-    created_time_str = order.created_at.strftime('%Y/%m/%d %H:%M') if order.created_at else datetime.now().strftime('%Y/%m/%d %H:%M')
+    created_time_str = order.created_at.strftime('%Y/%m/%d %H:%M') if order.created_at else get_tw_now().strftime('%Y/%m/%d %H:%M')
     total_str = f"{int(order.total_amount):,}" if order.total_amount.is_integer() else f"{order.total_amount:,.2f}"
 
     item_rows = ""
@@ -166,7 +166,7 @@ def build_order_email_html(order, items, shop_name=None):
     note_html = ""
     if order.customer_note and order.customer_note.strip():
         note_html = f"""
-        <p style="margin: 6px 0; color: #555;"><strong>客戶備註：</strong>{order.customer_note.strip()}</p>
+        <p style="margin: 6px 0; color: #555;"><strong>🚚 寄送方式：</strong>{order.customer_note.strip()}</p>
         """
 
     html = f"""

@@ -298,23 +298,29 @@
         </div>
     </el-drawer>
 
-    <!-- 預覽訂單明細對話框 (Dialog) -->
+    <!-- 核對商品內容與寄送方式對話框 (Dialog) -->
     <el-dialog
-        title="📝 預覽訂單明細"
+        title="📝 核對商品內容與寄送方式"
         :visible.sync="showCheckout"
         width="90%"
         :close-on-click-modal="false"
         custom-class="checkout-dialog">
         
         <div>
+            <!-- 寄送方式選擇 -->
             <div style="margin-bottom: 14px;">
-                <label style="font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 6px; display: block;">訂單備註 (選填)：</label>
-                <el-input
-                    type="textarea"
-                    :rows="3"
-                    placeholder="可輸入送貨時間偏好、特殊要求等..."
-                    v-model="customerNote">
-                </el-input>
+                <label style="font-weight: 700; font-size: 0.9rem; color: #1e293b; margin-bottom: 8px; display: block;">寄送方式（請選擇一種）：</label>
+                <el-radio-group v-model="shippingMethod" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                    <el-radio label="7-11(運費38元)" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
+                        🏪 7-11(運費38元)
+                    </el-radio>
+                    <el-radio label="全家(運費35元)" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
+                        🏪 全家(運費35元)
+                    </el-radio>
+                    <el-radio label="宅配一般地區(運費120元)" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
+                        📦 宅配一般地區(運費120元)
+                    </el-radio>
+                </el-radio-group>
             </div>
 
             <div style="background-color: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
@@ -335,8 +341,8 @@
 
         <span slot="footer" class="dialog-footer" style="display: flex; gap: 8px;">
             <el-button @click="showCheckout = false" style="flex: 1;">返回修改</el-button>
-            <el-button type="primary" :loading="submitting" @click="submitOrder" style="flex: 1;">
-                確認送出訂單
+            <el-button type="primary" :loading="submitting" @click="submitOrder" style="flex: 1.2; font-weight: bold;">
+                產出訂單資訊
             </el-button>
         </span>
     </el-dialog>
@@ -351,7 +357,10 @@
         
         <div class="order-success-container">
             <div class="success-icon"><i class="el-icon-circle-check"></i></div>
-            <div class="success-title">訂單已成功成立！</div>
+            <div class="success-title" style="line-height: 1.4; margin-bottom: 8px;">
+                <div>訂單明細已成立</div>
+                <div style="font-size: 1.1rem; color: #e11d48; margin-top: 4px; font-weight: 700;">請複製資訊LINE給闆娘</div>
+            </div>
             <div class="success-subtitle">訂單編號：<strong>{{ "{{ orderNo }}" }}</strong></div>
 
             <!-- 純文字摘要框 -->
@@ -361,7 +370,7 @@
             <div class="guide-box">
                 <p><strong>📌 後續動作指引：</strong></p>
                 <p>① 點擊下方「📋 複製訂單資訊」按鈕</p>
-                <p>② 開啟 LINE，找到店家／管理人聊天室</p>
+                <p>② 開啟 LINE，找到闆娘聊天室</p>
                 <p>③ 貼上訊息並送出，以便為您安排出貨！</p>
             </div>
 
@@ -430,7 +439,7 @@ new Vue({
             showCart: false,
             showCheckout: false,
             showSuccess: false,
-            customerNote: '',
+            shippingMethod: '7-11(運費38元)',
             orderNo: '',
             orderSummary: '',
             copied: false,
@@ -637,7 +646,7 @@ new Vue({
             this.submitting = true;
 
             const payload = {
-                note: this.customerNote,
+                note: this.shippingMethod,
                 items: this.cart.map(item => ({
                     variant_id: item.variant_id,
                     quantity: item.quantity
@@ -653,19 +662,19 @@ new Vue({
                         this.showSuccess = true;
                         this.copied = false;
                         
-                        // 清空購物車與備註
+                        // 清空購物車
                         this.cart = [];
                         this.saveCart();
-                        this.customerNote = '';
+                        this.shippingMethod = '7-11(運費38元)';
 
                         // 重新載入商品（庫存已更新）
                         this.fetchProducts();
                     } else {
-                        this.$message.error(res.data.message || '成立訂單失敗');
+                        this.$message.error(res.data.message || '產出訂單失敗');
                     }
                 })
                 .catch(err => {
-                    const msg = (err.response && err.response.data && err.response.data.message) || '成立訂單失敗，請稍後再試';
+                    const msg = (err.response && err.response.data && err.response.data.message) || '產出訂單失敗，請稍後再試';
                     this.$message.error(msg);
                 })
                 .finally(() => {
