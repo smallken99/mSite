@@ -72,10 +72,12 @@
             </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="120" align="center">
+        <el-table-column label="操作" width="130" align="center">
             <template slot-scope="scope">
                 <el-button size="mini" type="primary" plain @click="viewDetail(scope.row)">
                     詳情
+                </el-button>
+                <el-button size="mini" type="danger" plain icon="el-icon-delete" @click="deleteOrder(scope.row)" title="刪除訂單">
                 </el-button>
             </template>
         </el-table-column>
@@ -130,7 +132,7 @@
                 <span style="color: #e11d48; font-weight: bold; font-size: 1.3rem;">NT$ {{ "{{ formatPrice(currentOrder.total_amount) }}" }}</span>
             </div>
 
-            <div style="border-top: 1px solid #eee; padding-top: 16px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="border-top: 1px solid #eee; padding-top: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <span style="font-weight: 600; margin-right: 8px;">更改狀態：</span>
                     <el-select v-model="currentOrder.status" size="small" style="width: 120px;" @change="updateStatus(currentOrder)">
@@ -139,7 +141,10 @@
                         <el-option label="已取消" value="cancelled"></el-option>
                     </el-select>
                 </div>
-                <el-button @click="detailVisible = false" size="small">關閉</el-button>
+                <div>
+                    <el-button type="danger" size="small" plain icon="el-icon-delete" @click="deleteCurrentOrder">刪除訂單</el-button>
+                    <el-button @click="detailVisible = false" size="small">關閉</el-button>
+                </div>
             </div>
         </div>
     </el-dialog>
@@ -201,6 +206,52 @@ new Vue({
                 console.error(err);
                 this.$message.error('更新狀態失敗');
             });
+        },
+        deleteOrder(order) {
+            this.$confirm(`確定要刪除訂單「${order.order_no}」嗎？刪除後無法復原。`, '確認刪除', {
+                confirmButtonText: '確定刪除',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(() => {
+                axios.delete(`/shop/admin/api/orders/${order.id}`)
+                    .then(res => {
+                        if (res.data.success) {
+                            this.$message.success('訂單已成功刪除');
+                            this.fetchOrders();
+                        } else {
+                            this.$message.error(res.data.message || '刪除失敗');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        this.$message.error('刪除訂單失敗');
+                    });
+            }).catch(() => {});
+        },
+        deleteCurrentOrder() {
+            if (!this.currentOrder) return;
+            const order = this.currentOrder;
+            this.$confirm(`確定要刪除訂單「${order.order_no}」嗎？刪除後無法復原。`, '確認刪除', {
+                confirmButtonText: '確定刪除',
+                cancelButtonText: '取消',
+                type: 'warning'
+            }).then(() => {
+                axios.delete(`/shop/admin/api/orders/${order.id}`)
+                    .then(res => {
+                        if (res.data.success) {
+                            this.$message.success('訂單已成功刪除');
+                            this.detailVisible = false;
+                            this.currentOrder = null;
+                            this.fetchOrders();
+                        } else {
+                            this.$message.error(res.data.message || '刪除失敗');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        this.$message.error('刪除訂單失敗');
+                    });
+            }).catch(() => {});
         },
         getStatusLabel(status) {
             const map = {

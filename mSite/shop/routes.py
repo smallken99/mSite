@@ -454,6 +454,21 @@ def admin_update_order_status(id):
     return jsonify({'success': True, 'status': order.status})
 
 
+@shop.route('/shop/admin/api/orders/<int:id>', methods=['DELETE'])
+@login_required
+def admin_delete_order(id):
+    """刪除訂單"""
+    order = ShopOrder.query.get_or_404(id)
+    try:
+        db.session.delete(order)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '訂單已成功刪除'})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"刪除訂單失敗: {str(e)}")
+        return jsonify({'success': False, 'message': '刪除訂單失敗'}), 500
+
+
 # --- 商城設定 ---
 
 @shop.route('/shop/admin/settings')
