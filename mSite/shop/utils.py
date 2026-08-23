@@ -1,5 +1,6 @@
 import os
 import secrets
+import json
 from datetime import datetime
 from PIL import Image, ImageOps
 from flask import current_app
@@ -8,12 +9,35 @@ from mSite import db, mail
 from mSite.models import ShopOrder, ShopSetting, get_tw_now
 
 
+DEFAULT_SHIPPING_METHODS = [
+    "7-11(運費38元)",
+    "全家(運費35元)",
+    "宅配一般地區(運費120元)",
+    "高屏自取(請聯繫闆娘)"
+]
+
+
 def get_shop_setting(key, default=''):
     """取得商城設定值"""
     setting = ShopSetting.query.filter_by(key=key).first()
     if setting and setting.value:
         return setting.value
     return default
+
+
+def get_shipping_methods():
+    """取得商城設定的寄送方式清單（JSON 格式解析，若無則回傳預設 4 項）"""
+    val = get_shop_setting('shipping_methods', '')
+    if val:
+        try:
+            methods = json.loads(val)
+            if isinstance(methods, list) and len(methods) > 0:
+                filtered = [str(m).strip() for m in methods if str(m).strip()]
+                if filtered:
+                    return filtered
+        except Exception:
+            pass
+    return list(DEFAULT_SHIPPING_METHODS)
 
 
 def generate_order_no():

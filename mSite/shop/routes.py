@@ -1,4 +1,5 @@
 import os
+import json
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required
 from mSite import db
@@ -10,7 +11,8 @@ from mSite.shop.utils import (
     build_order_summary_text,
     send_order_notification,
     send_test_email,
-    get_shop_setting
+    get_shop_setting,
+    get_shipping_methods
 )
 
 shop = Blueprint('shop', __name__)
@@ -25,6 +27,15 @@ def shop_index():
     """商城前台首頁"""
     shop_name = get_shop_setting('shop_name', '棋新商城')
     return render_template('shop.html', shop_name=shop_name)
+
+
+@shop.route('/shop/api/settings', methods=['GET'])
+def get_public_settings():
+    """前台取得公開設定（名稱與寄送方式）"""
+    return jsonify({
+        'shop_name': get_shop_setting('shop_name', '棋新商城'),
+        'shipping_methods': get_shipping_methods()
+    })
 
 
 @shop.route('/shop/api/products', methods=['GET'])
@@ -459,10 +470,12 @@ def admin_get_settings():
     admin_email = get_shop_setting('admin_email', '')
     shop_name = get_shop_setting('shop_name', '棋新商城')
     announcement_image = get_shop_setting('announcement_image', '')
+    shipping_methods = get_shipping_methods()
     return jsonify({
         'admin_email': admin_email,
         'shop_name': shop_name,
-        'announcement_image': announcement_image
+        'announcement_image': announcement_image,
+        'shipping_methods': shipping_methods
     })
 
 
@@ -480,6 +493,15 @@ def admin_update_settings():
                 db.session.add(setting)
             else:
                 setting.value = str(data[key]).strip()
+
+    if 'shipping_methods' in data and isinstance(data['shipping_methods'], list):
+        filtered_methods = [str(m).strip() for m in data['shipping_methods'] if str(m).strip()]
+        setting = ShopSetting.query.filter_by(key='shipping_methods').first()
+        if not setting:
+            setting = ShopSetting(key='shipping_methods', value=json.dumps(filtered_methods, ensure_ascii=False))
+            db.session.add(setting)
+        else:
+            setting.value = json.dumps(filtered_methods, ensure_ascii=False)
 
     db.session.commit()
     return jsonify({'success': True})

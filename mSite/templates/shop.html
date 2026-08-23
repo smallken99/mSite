@@ -310,17 +310,12 @@
             <div style="margin-bottom: 14px;">
                 <label style="font-weight: 700; font-size: 0.9rem; color: #1e293b; margin-bottom: 8px; display: block;">寄送方式（請選擇一種）：</label>
                 <el-radio-group v-model="shippingMethod" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-                    <el-radio label="7-11(運費38元)" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
-                        🏪 7-11(運費38元)
-                    </el-radio>
-                    <el-radio label="全家(運費35元)" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
-                        🏪 全家(運費35元)
-                    </el-radio>
-                    <el-radio label="宅配一般地區(運費120元)" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
-                        📦 宅配一般地區(運費120元)
-                    </el-radio>
-                    <el-radio label="高屏自取(請聯繫闆娘)" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
-                        🤝 高屏自取(請聯繫闆娘)
+                    <el-radio v-for="(opt, idx) in shippingMethods" :key="idx" :label="opt" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
+                        <span v-if="opt.includes('7-11') || opt.includes('全家') || opt.includes('超商') || opt.includes('萊爾富') || opt.includes('OK')">🏪 </span>
+                        <span v-else-if="opt.includes('宅配') || opt.includes('郵寄') || opt.includes('快遞') || opt.includes('貨運')">📦 </span>
+                        <span v-else-if="opt.includes('自取') || opt.includes('面交')">🤝 </span>
+                        <span v-else>🚚 </span>
+                        <span>{{ "{{ opt }}" }}</span>
                     </el-radio>
                 </el-radio-group>
             </div>
@@ -440,6 +435,12 @@ new Vue({
             showCart: false,
             showCheckout: false,
             showSuccess: false,
+            shippingMethods: [
+                '7-11(運費38元)',
+                '全家(運費35元)',
+                '宅配一般地區(運費120元)',
+                '高屏自取(請聯繫闆娘)'
+            ],
             shippingMethod: '7-11(運費38元)',
             orderNo: '',
             orderSummary: '',
@@ -488,11 +489,26 @@ new Vue({
         }
     },
     created() {
+        this.fetchSettings();
         this.fetchProducts();
         this.loadCart();
         this.fetchAnnouncement();
     },
     methods: {
+        fetchSettings() {
+            axios.get('/shop/api/settings')
+                .then(res => {
+                    if (res.data.shipping_methods && res.data.shipping_methods.length > 0) {
+                        this.shippingMethods = res.data.shipping_methods;
+                        if (!this.shippingMethods.includes(this.shippingMethod)) {
+                            this.shippingMethod = this.shippingMethods[0];
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('載入商城設定失敗:', err);
+                });
+        },
         fetchProducts() {
             this.loading = true;
             axios.get('/shop/api/products')
@@ -666,7 +682,7 @@ new Vue({
                         // 清空購物車
                         this.cart = [];
                         this.saveCart();
-                        this.shippingMethod = '7-11(運費38元)';
+                        this.shippingMethod = (this.shippingMethods && this.shippingMethods.length > 0) ? this.shippingMethods[0] : '7-11(運費38元)';
 
                         // 重新載入商品（庫存已更新）
                         this.fetchProducts();

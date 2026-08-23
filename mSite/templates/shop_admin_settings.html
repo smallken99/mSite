@@ -43,6 +43,35 @@
                         <div style="font-size: 12px; color: #888; margin-top: 4px;">當客戶於前台成立訂單時，系統會自動發送完整訂單通知信至此 Email (若未填寫則不發送)。</div>
                     </el-form-item>
 
+                    <!-- 寄送方式選項設定 -->
+                    <el-form-item label="寄送方式選項">
+                        <div style="font-size: 12px; color: #64748b; margin-bottom: 10px;">
+                            前台核對訂單時提供客戶單選的寄送方式。您可以自由編輯文字、新增、刪除或調整順序：
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px; max-width: 600px;">
+                            <div v-for="(method, idx) in form.shipping_methods" :key="idx" style="display: flex; gap: 8px; align-items: center;">
+                                <span style="font-size: 13px; font-weight: bold; color: #94a3b8; width: 22px; text-align: center;">{{ "{{ idx + 1 }}" }}.</span>
+                                <el-input v-model="form.shipping_methods[idx]" placeholder="請輸入寄送方式名稱與運費說明" size="small" style="flex: 1;"></el-input>
+                                
+                                <!-- 上移 / 下移 / 刪除 -->
+                                <el-button-group size="mini">
+                                    <el-button icon="el-icon-top" :disabled="idx === 0" @click="moveShippingMethod(idx, -1)" title="上移"></el-button>
+                                    <el-button icon="el-icon-bottom" :disabled="idx === form.shipping_methods.length - 1" @click="moveShippingMethod(idx, 1)" title="下移"></el-button>
+                                </el-button-group>
+                                <el-button type="danger" icon="el-icon-delete" size="mini" plain @click="removeShippingMethod(idx)" title="刪除選項"></el-button>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <el-button type="primary" size="small" plain icon="el-icon-plus" @click="addShippingMethod">
+                                新增寄送方式
+                            </el-button>
+                            <el-button type="text" size="small" style="color: #64748b;" @click="resetDefaultShippingMethods">
+                                🔄 恢復預設選項
+                            </el-button>
+                        </div>
+                    </el-form-item>
+
                     <el-form-item style="margin-top: 30px;">
                         <el-button type="primary" :loading="saving" icon="el-icon-check" @click="saveSettings">
                             儲存設定
@@ -126,7 +155,13 @@ new Vue({
             announcementImage: '',
             form: {
                 shop_name: '棋新商城',
-                admin_email: ''
+                admin_email: '',
+                shipping_methods: [
+                    '7-11(運費38元)',
+                    '全家(運費35元)',
+                    '宅配一般地區(運費120元)',
+                    '高屏自取(請聯繫闆娘)'
+                ]
             }
         };
     },
@@ -141,6 +176,9 @@ new Vue({
                     this.form.shop_name = res.data.shop_name || '棋新商城';
                     this.form.admin_email = res.data.admin_email || '';
                     this.announcementImage = res.data.announcement_image || '';
+                    if (res.data.shipping_methods && res.data.shipping_methods.length > 0) {
+                        this.form.shipping_methods = res.data.shipping_methods;
+                    }
                 })
                 .catch(err => {
                     console.error(err);
@@ -150,7 +188,40 @@ new Vue({
                     this.loading = false;
                 });
         },
+        addShippingMethod() {
+            this.form.shipping_methods.push('');
+        },
+        removeShippingMethod(idx) {
+            if (this.form.shipping_methods.length <= 1) {
+                this.$message.warning('至少需保留一種寄送方式');
+                return;
+            }
+            this.form.shipping_methods.splice(idx, 1);
+        },
+        moveShippingMethod(idx, direction) {
+            const targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= this.form.shipping_methods.length) return;
+            const item = this.form.shipping_methods.splice(idx, 1)[0];
+            this.form.shipping_methods.splice(targetIdx, 0, item);
+        },
+        resetDefaultShippingMethods() {
+            this.form.shipping_methods = [
+                '7-11(運費38元)',
+                '全家(運費35元)',
+                '宅配一般地區(運費120元)',
+                '高屏自取(請聯繫闆娘)'
+            ];
+            this.$message.info('已重置為預設 4 個選項，請記得點擊「儲存設定」！');
+        },
         saveSettings() {
+            // 過濾空白項目
+            const cleanedMethods = this.form.shipping_methods.map(m => (m || '').trim()).filter(m => m.length > 0);
+            if (cleanedMethods.length === 0) {
+                this.$message.warning('請至少輸入一種有效的寄送方式名稱');
+                return;
+            }
+            this.form.shipping_methods = cleanedMethods;
+
             this.saving = true;
             axios.put('/shop/admin/api/settings', this.form)
                 .then(res => {
