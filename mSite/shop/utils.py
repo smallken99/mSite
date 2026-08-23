@@ -126,9 +126,7 @@ def build_order_summary_text(order, items, shop_name=None):
     lines.append("")
     lines.append("──── 訂單明細 ────")
     for item in items:
-        display_name = item.product_name
-        if hasattr(item, 'variant_name') and item.variant_name:
-            display_name += f" - {item.variant_name}"
+        display_name = item.variant_name if (hasattr(item, 'variant_name') and item.variant_name) else item.product_name
         price_str = f"{int(item.subtotal):,}" if item.subtotal.is_integer() else f"{item.subtotal:,.2f}"
         lines.append(f"• {display_name}  x{item.quantity}   NT$ {price_str}")
 
@@ -149,9 +147,7 @@ def build_order_email_html(order, items, shop_name=None):
 
     item_rows = ""
     for item in items:
-        display_name = item.product_name
-        if hasattr(item, 'variant_name') and item.variant_name:
-            display_name += f" - {item.variant_name}"
+        display_name = item.variant_name if (hasattr(item, 'variant_name') and item.variant_name) else item.product_name
         unit_p = f"{int(item.unit_price):,}" if item.unit_price.is_integer() else f"{item.unit_price:,.2f}"
         sub_p = f"{int(item.subtotal):,}" if item.subtotal.is_integer() else f"{item.subtotal:,.2f}"
         item_rows += f"""

@@ -107,10 +107,9 @@
 
             <h5 style="margin-bottom: 8px; color: #333;">📦 訂購明細清單</h5>
             <el-table :data="currentOrder.items" border size="small" style="width: 100%; margin-bottom: 16px;">
-                <el-table-column prop="product_name" label="品名" min-width="160">
+                <el-table-column label="品名/規格" min-width="160">
                     <template slot-scope="scope">
-                        <span>{{ "{{ scope.row.product_name }}" }}</span>
-                        <span v-if="scope.row.variant_name" style="color: #64748b;"> - {{ "{{ scope.row.variant_name }}" }}</span>
+                        <span>{{ "{{ scope.row.variant_name || scope.row.product_name }}" }}</span>
                     </template>
                 </el-table-column>
                 <el-table-column prop="quantity" label="數量" width="70" align="center"></el-table-column>
