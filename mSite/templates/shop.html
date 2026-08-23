@@ -288,7 +288,7 @@
             <!-- 購物車底部 -->
             <div v-if="cart.length > 0" class="cart-drawer-footer">
                 <div class="cart-total-row">
-                    <span>合計金額：</span>
+                    <span>合計金額（不含運費）：</span>
                     <span class="cart-total-amount">NT$ {{ "{{ formatPrice(cartTotal) }}" }}</span>
                 </div>
                 <el-button type="primary" class="btn-checkout" @click="openCheckoutDialog">
@@ -328,7 +328,7 @@
                     <span style="font-weight: 600;">NT$ {{ "{{ formatPrice(item.price * item.quantity) }}" }}</span>
                 </div>
                 <div style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; font-weight: bold; font-size: 0.95rem;">
-                    <span>總金額：</span>
+                    <span>總金額（不含運費）：</span>
                     <span style="color: #e11d48;">NT$ {{ "{{ formatPrice(cartTotal) }}" }}</span>
                 </div>
             </div>

@@ -134,7 +134,7 @@ def build_order_summary_text(order, items, shop_name=None):
 
     total_str = f"{int(order.total_amount):,}" if order.total_amount.is_integer() else f"{order.total_amount:,.2f}"
     lines.append("━━━━━━━━━━━━━━━━━━")
-    lines.append(f"合計金額：NT$ {total_str}")
+    lines.append(f"合計金額（不含運費）：NT$ {total_str}")
 
     return "\n".join(lines)
 
@@ -200,7 +200,7 @@ def build_order_email_html(order, items, shop_name=None):
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="3" style="padding: 14px 8px; text-align: right; font-weight: bold; font-size: 16px;">總計金額：</td>
+                            <td colspan="3" style="padding: 14px 8px; text-align: right; font-weight: bold; font-size: 16px;">總計金額（不含運費）：</td>
                             <td style="padding: 14px 8px; text-align: right; font-weight: bold; font-size: 18px; color: #e11d48;">NT$ {total_str}</td>
                         </tr>
                     </tfoot>
