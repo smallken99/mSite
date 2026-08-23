@@ -292,15 +292,15 @@
                     <span class="cart-total-amount">NT$ {{ "{{ formatPrice(cartTotal) }}" }}</span>
                 </div>
                 <el-button type="primary" class="btn-checkout" @click="openCheckoutDialog">
-                    成立訂單
+                    預覽訂單明細
                 </el-button>
             </div>
         </div>
     </el-drawer>
 
-    <!-- 成立訂單對話框 (Dialog) -->
+    <!-- 預覽訂單明細對話框 (Dialog) -->
     <el-dialog
-        title="📝 確認成立訂單"
+        title="📝 預覽訂單明細"
         :visible.sync="showCheckout"
         width="90%"
         :close-on-click-modal="false"
@@ -318,14 +318,13 @@
             </div>
 
             <div style="background-color: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
-                <div style="font-weight: 600; font-size: 0.85rem; color: #475569; margin-bottom: 8px;">訂單明細預覽：</div>
-                <div v-for="item in cart" :key="item.variant_id" style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; color: #334155;">
-                    <span>
-                        {{ "{{ item.name }}" }}
+                <div v-for="item in cart" :key="item.variant_id" style="display: flex; justify-content: space-between; align-items: baseline; font-size: 0.88rem; margin-bottom: 6px; color: #334155; line-height: 1.4;">
+                    <div style="flex: 1; padding-right: 8px; word-break: break-word;">
+                        <span>{{ "{{ item.name }}" }}</span>
                         <span v-if="item.variant_name" style="color: #64748b;"> - {{ "{{ item.variant_name }}" }}</span>
-                        x {{ "{{ item.quantity }}" }}
-                    </span>
-                    <span style="font-weight: 600;">NT$ {{ "{{ formatPrice(item.price * item.quantity) }}" }}</span>
+                        <span style="color: #e11d48; font-weight: 800; font-size: 0.98rem; margin-left: 4px;">x {{ "{{ item.quantity }}" }}</span>
+                    </div>
+                    <span style="font-weight: 600; white-space: nowrap;">NT$ {{ "{{ formatPrice(item.price * item.quantity) }}" }}</span>
                 </div>
                 <div style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; font-weight: bold; font-size: 0.95rem;">
                     <span>總金額（不含運費）：</span>
