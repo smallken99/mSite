@@ -2,6 +2,13 @@
 本機測試啟動腳本 — 使用 SQLite 測試環境，不影響線上 MySQL。
 """
 import os
+import sys
+
+# 確保 Windows 主控台支援 UTF-8 輸出
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
 from mSite import create_app, db, bcrypt
 from mSite.config import TestConfig
 from mSite.models import User, ShopProduct, ProductVariant, ShopSetting

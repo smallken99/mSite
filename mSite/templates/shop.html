@@ -38,6 +38,14 @@
                          class="product-card-img"
                          loading="lazy"
                          @error="onImageError($event)">
+                    <!-- 卡片快捷分享按鈕 -->
+                    <button type="button"
+                            class="product-card-share-btn"
+                            @click.stop="openShareModal(product)"
+                            title="分享此商品"
+                            aria-label="分享商品">
+                        <i class="el-icon-share"></i>
+                    </button>
                 </div>
                 <div class="product-card-body">
                     <div>
@@ -110,7 +118,8 @@
         direction="btt"
         size="82%"
         :with-header="false"
-        custom-class="sku-drawer">
+        custom-class="sku-drawer"
+        @close="onDetailDrawerClosed">
 
         <div v-if="detailProduct" class="sku-modal-container">
             <!-- 1. 頂部固定預覽區 (規格圖片、價格、庫存即時置頂顯示) -->
@@ -160,17 +169,28 @@
                     </div>
                 </div>
 
-                <!-- 右上角關閉按鈕 -->
-                <button class="sku-close-btn" @click="showDetail = false" title="關閉">
-                    <i class="el-icon-close"></i>
-                </button>
+                <!-- 右上角操作按鈕群組 (分享 + 關閉) -->
+                <div class="sku-header-actions">
+                    <button type="button" class="sku-action-btn sku-share-btn" @click="openShareModal(detailProduct)" title="分享此商品" aria-label="分享商品">
+                        <i class="el-icon-share"></i>
+                    </button>
+                    <button type="button" class="sku-action-btn sku-close-btn" @click="closeProductDetail" title="關閉" aria-label="關閉">
+                        <i class="el-icon-close"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- 2. 中間可滾動內容區 -->
             <div class="sku-body">
                 <!-- 商品基本標題與簡介 -->
                 <div class="sku-product-intro">
-                    <h3 class="sku-product-title">{{ "{{ detailProduct.name }}" }}</h3>
+                    <div class="sku-title-wrapper">
+                        <h3 class="sku-product-title">{{ "{{ detailProduct.name }}" }}</h3>
+                        <button type="button" class="sku-inline-share-btn" @click="openShareModal(detailProduct)" title="分享此商品">
+                            <i class="el-icon-share"></i>
+                            <span>分享</span>
+                        </button>
+                    </div>
                     <p v-if="detailProduct.description" class="sku-product-desc">{{ "{{ detailProduct.description }}" }}</p>
                 </div>
 
@@ -422,6 +442,99 @@
         </div>
     </transition>
 
+    <!-- ============================== -->
+    <!-- 商品分享彈窗 (LINE / 複製連結 / 原生分享) -->
+    <!-- ============================== -->
+    <el-dialog
+        :visible.sync="showShareModal"
+        width="92%"
+        custom-class="share-dialog-custom"
+        :append-to-body="true"
+        :close-on-click-modal="true">
+        <div slot="title" class="share-modal-title">
+            <i class="el-icon-share"></i>
+            <span>分享此商品</span>
+        </div>
+
+        <div v-if="shareTargetProduct" class="share-modal-body">
+            <!-- 商品摘要卡片 -->
+            <div class="share-product-card">
+                <img :src="'/static/shop/products/' + (shareTargetProduct.image_file || 'default.jpg')" 
+                     :alt="shareTargetProduct.name" 
+                     class="share-product-thumb"
+                     @error="onImageError($event)">
+                <div class="share-product-info">
+                    <div class="share-product-name" :title="shareTargetProduct.name">{{ "{{ shareTargetProduct.name }}" }}</div>
+                    <div class="share-product-price">
+                        <span v-if="shareTargetProduct.price === shareTargetProduct.price_max">
+                            NT$ {{ "{{ formatPrice(shareTargetProduct.price) }}" }}
+                        </span>
+                        <span v-else>
+                            NT$ {{ "{{ formatPrice(shareTargetProduct.price) }}" }} ~ {{ "{{ formatPrice(shareTargetProduct.price_max) }}" }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分享途徑清單 -->
+            <div class="share-actions-container">
+                <!-- 1. LINE 分享 -->
+                <button type="button" class="share-channel-btn btn-line" @click="shareToLine">
+                    <div class="share-channel-icon line-icon-bg">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="#ffffff">
+                            <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .626.285.626.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.281.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
+                        </svg>
+                    </div>
+                    <div class="share-channel-label">
+                        <span class="share-main-text">分享到 LINE</span>
+                        <span class="share-sub-text">傳送商品資訊給好友或群組</span>
+                    </div>
+                    <i class="el-icon-arrow-right share-arrow"></i>
+                </button>
+
+                <!-- 2. 複製網址 -->
+                <button type="button" class="share-channel-btn btn-copy" @click="copyProductShareUrl">
+                    <div class="share-channel-icon copy-icon-bg">
+                        <i :class="shareUrlCopied ? 'el-icon-check' : 'el-icon-document-copy'"></i>
+                    </div>
+                    <div class="share-channel-label">
+                        <span class="share-main-text">{{ "{{ shareUrlCopied ? '已成功複製商品連結！' : '複製商品網址' }}" }}</span>
+                        <span class="share-sub-text">可直接貼上並傳送給他人</span>
+                    </div>
+                    <i class="el-icon-arrow-right share-arrow"></i>
+                </button>
+
+                <!-- 3. 原生分享 (手機瀏覽器支援時顯示) -->
+                <button v-if="canWebShare" type="button" class="share-channel-btn btn-native" @click="shareViaWebShare">
+                    <div class="share-channel-icon native-icon-bg">
+                        <i class="el-icon-connection"></i>
+                    </div>
+                    <div class="share-channel-label">
+                        <span class="share-main-text">更多分享方式</span>
+                        <span class="share-sub-text">喚起手機系統分享面板 (IG / Messenger 等)</span>
+                    </div>
+                    <i class="el-icon-arrow-right share-arrow"></i>
+                </button>
+            </div>
+
+            <!-- 網址預覽與快速複製框 -->
+            <div class="share-url-preview-box">
+                <input type="text"
+                       readonly
+                       :value="productShareUrl"
+                       class="share-url-text-input"
+                       @click="$event.target.select()">
+                <button type="button"
+                        class="share-url-copy-action-btn"
+                        :class="{'is-copied': shareUrlCopied}"
+                        @click="copyProductShareUrl">
+                    <i :class="shareUrlCopied ? 'el-icon-check' : 'el-icon-copy-document'"></i>
+                    <span>{{ "{{ shareUrlCopied ? '已複製' : '複製' }}" }}</span>
+                </button>
+            </div>
+        </div>
+    </el-dialog>
+
 </div>
 
 <script>
@@ -451,6 +564,11 @@ new Vue({
             detailProduct: null,
             selectedVariant: null,
             detailQty: 1,
+            // 商品分享
+            showShareModal: false,
+            shareTargetProduct: null,
+            shareUrlCopied: false,
+            canWebShare: false,
             // 圖片放大預覽
             previewImageUrl: null,
             previewImageTitle: '',
@@ -482,6 +600,9 @@ new Vue({
             }
             return '/static/shop/products/' + (this.detailProduct.image_file || 'default.jpg');
         },
+        productShareUrl() {
+            return this.getProductShareUrl(this.shareTargetProduct || this.detailProduct);
+        },
         hasNewAnnouncement() {
             if (!this.announcementVersion) return false;
             var readVer = localStorage.getItem('msite_announcement_read_version') || '';
@@ -489,10 +610,15 @@ new Vue({
         }
     },
     created() {
+        this.canWebShare = (typeof navigator !== 'undefined' && typeof navigator.share === 'function');
         this.fetchSettings();
         this.fetchProducts();
         this.loadCart();
         this.fetchAnnouncement();
+        window.addEventListener('popstate', this.onPopState);
+    },
+    beforeDestroy() {
+        window.removeEventListener('popstate', this.onPopState);
     },
     methods: {
         fetchSettings() {
@@ -514,6 +640,7 @@ new Vue({
             axios.get('/shop/api/products')
                 .then(res => {
                     this.products = res.data;
+                    this.checkUrlForProduct();
                 })
                 .catch(err => {
                     console.error('取得商品失敗:', err);
@@ -544,7 +671,7 @@ new Vue({
             this.previewImageTitle = '';
         },
         // --- 商品詳情與規格選取 ---
-        openProductDetail(product) {
+        openProductDetail(product, updateUrl = true) {
             this.detailProduct = product;
             this.selectedVariant = null;
             this.detailQty = 1;
@@ -555,12 +682,121 @@ new Vue({
             }
 
             this.showDetail = true;
+            if (updateUrl) {
+                this.syncUrlForProduct(product.id);
+            }
             this.$nextTick(() => {
                 const body = document.querySelector('.sku-body');
                 if (body) {
                     body.scrollTop = 0;
                 }
             });
+        },
+        closeProductDetail() {
+            this.showDetail = false;
+            this.cleanProductUrl();
+        },
+        onDetailDrawerClosed() {
+            this.cleanProductUrl();
+        },
+        syncUrlForProduct(productId) {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('p', productId);
+                window.history.replaceState({ productId: productId }, '', url.toString());
+            } catch (e) {
+                console.error('更新網址失敗:', e);
+            }
+        },
+        cleanProductUrl() {
+            try {
+                const url = new URL(window.location.href);
+                if (url.searchParams.has('p') || url.searchParams.has('product_id')) {
+                    url.searchParams.delete('p');
+                    url.searchParams.delete('product_id');
+                    const newUrl = url.pathname + (url.search ? url.search : '');
+                    window.history.replaceState({}, '', newUrl);
+                }
+            } catch (e) {
+                console.error('清理網址失敗:', e);
+            }
+        },
+        checkUrlForProduct() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const pid = params.get('p') || params.get('product_id');
+                if (pid && this.products && this.products.length > 0) {
+                    const target = this.products.find(item => String(item.id) === String(pid));
+                    if (target) {
+                        this.openProductDetail(target, false);
+                    }
+                }
+            } catch (e) {
+                console.error('解析網址商品參數失敗:', e);
+            }
+        },
+        onPopState() {
+            const params = new URLSearchParams(window.location.search);
+            const pid = params.get('p') || params.get('product_id');
+            if (pid && this.products && this.products.length > 0) {
+                const target = this.products.find(item => String(item.id) === String(pid));
+                if (target) {
+                    this.openProductDetail(target, false);
+                    return;
+                }
+            }
+            if (this.showDetail) {
+                this.showDetail = false;
+            }
+        },
+        // --- 商品分享 ---
+        getProductShareUrl(product) {
+            if (!product) return window.location.href;
+            try {
+                const url = new URL(window.location.origin + window.location.pathname);
+                url.searchParams.set('p', product.id);
+                return url.toString();
+            } catch (e) {
+                return window.location.origin + '/shop?p=' + product.id;
+            }
+        },
+        openShareModal(product) {
+            this.shareTargetProduct = product || this.detailProduct;
+            this.shareUrlCopied = false;
+            this.showShareModal = true;
+        },
+        shareToLine() {
+            if (!this.shareTargetProduct) return;
+            const p = this.shareTargetProduct;
+            const url = this.getProductShareUrl(p);
+            const text = `【${p.name}】\n推薦給您！點此前往商品頁面查看詳情與規格：\n${url}`;
+            const lineShareUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+            window.open(lineShareUrl, '_blank');
+        },
+        copyProductShareUrl() {
+            if (!this.shareTargetProduct) return;
+            const url = this.getProductShareUrl(this.shareTargetProduct);
+            this.doCopyText(url, '商品網址已成功複製到剪貼簿！');
+            this.shareUrlCopied = true;
+            setTimeout(() => {
+                this.shareUrlCopied = false;
+            }, 2500);
+        },
+        async shareViaWebShare() {
+            if (!this.shareTargetProduct || !navigator.share) return;
+            const p = this.shareTargetProduct;
+            const url = this.getProductShareUrl(p);
+            try {
+                await navigator.share({
+                    title: p.name,
+                    text: `【${p.name}】推薦給您！點此查看商品詳情：`,
+                    url: url
+                });
+            } catch (err) {
+                if (err && err.name !== 'AbortError') {
+                    console.error('Web Share 失敗:', err);
+                }
+            }
         },
         selectVariant(v) {
             if (v.stock <= 0) return;
@@ -700,22 +936,23 @@ new Vue({
         },
         copyOrderSummary() {
             if (!this.orderSummary) return;
-
-            const textToCopy = this.orderSummary;
+            this.doCopyText(this.orderSummary, '訂單資訊已成功複製到剪貼簿！');
+            this.copied = true;
+        },
+        doCopyText(text, successMsg = '複製成功！') {
             if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(textToCopy)
+                navigator.clipboard.writeText(text)
                     .then(() => {
-                        this.copied = true;
-                        this.$message.success('訂單資訊已成功複製到剪貼簿！');
+                        this.$message.success(successMsg);
                     })
-                    .catch(err => {
-                        this.fallbackCopyText(textToCopy);
+                    .catch(() => {
+                        this.fallbackCopyText(text, successMsg);
                     });
             } else {
-                this.fallbackCopyText(textToCopy);
+                this.fallbackCopyText(text, successMsg);
             }
         },
-        fallbackCopyText(text) {
+        fallbackCopyText(text, successMsg = '複製成功！') {
             const textArea = document.createElement("textarea");
             textArea.value = text;
             textArea.style.position = "fixed";
@@ -726,11 +963,10 @@ new Vue({
             textArea.select();
             try {
                 document.execCommand('copy');
-                this.copied = true;
-                this.$message.success('訂單資訊已成功複製到剪貼簿！');
+                this.$message.success(successMsg);
             } catch (err) {
                 console.error('複製失敗:', err);
-                this.$message.warning('請手動長按選取上方內容進行複製');
+                this.$message.warning('請手動長按選取內容進行複製');
             }
             document.body.removeChild(textArea);
         },
