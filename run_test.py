@@ -12,13 +12,15 @@ if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
 from mSite import create_app, db, bcrypt
 from mSite.config import TestConfig
 from mSite.models import User, ShopProduct, ProductVariant, ShopSetting
+from mSite.shop.utils import ensure_shop_schema
 
 # 建立使用 TestConfig 的 Flask 應用實例
 app = create_app(config_class=TestConfig)
 
 with app.app_context():
-    # 建立所有資料表
+    # 建立所有資料表並確保新欄位結構
     db.create_all()
+    ensure_shop_schema()
 
     # 1. 插入預設設定（若尚未存在或更新）
     shop_name_setting = ShopSetting.query.filter_by(key='shop_name').first()

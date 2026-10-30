@@ -12,7 +12,9 @@ from mSite.shop.utils import (
     send_order_notification,
     send_test_email,
     get_shop_setting,
-    get_shipping_methods
+    get_shipping_methods,
+    normalize_shipping_method,
+    ensure_shop_schema
 )
 
 shop = Blueprint('shop', __name__)
@@ -133,11 +135,35 @@ def checkout():
         if product:
             product.sync_price_stock()
 
+    # 運費處理：優先以系統設定之寄送方式驗證並計算
+    shipping_method_name = (data.get('shipping_method') or data.get('shipping_method_name') or '').strip()
+    if not shipping_method_name and note:
+        shipping_method_name = note
+
+    methods = get_shipping_methods()
+    matched_method = next((m for m in methods if m['name'] == shipping_method_name), None)
+    if matched_method:
+        shipping_fee = float(matched_method['fee'])
+    else:
+        try:
+            shipping_fee = float(data.get('shipping_fee', 0))
+            if shipping_fee < 0:
+                shipping_fee = 0.0
+        except (ValueError, TypeError):
+            shipping_fee = 0.0
+
+    items_subtotal = total_amount
+    final_total_amount = items_subtotal + shipping_fee
+
+    ensure_shop_schema()
+
     order_no = generate_order_no()
     order = ShopOrder(
         order_no=order_no,
         customer_note=note,
-        total_amount=total_amount,
+        shipping_method=shipping_method_name,
+        shipping_fee=shipping_fee,
+        total_amount=final_total_amount,
         status='pending',
         created_at=get_tw_now()
     )
@@ -159,7 +185,9 @@ def checkout():
         'success': True,
         'order_no': order_no,
         'order_summary': order_summary,
-        'total_amount': total_amount
+        'subtotal_amount': items_subtotal,
+        'shipping_fee': shipping_fee,
+        'total_amount': final_total_amount
     })
 
 
@@ -510,13 +538,17 @@ def admin_update_settings():
                 setting.value = str(data[key]).strip()
 
     if 'shipping_methods' in data and isinstance(data['shipping_methods'], list):
-        filtered_methods = [str(m).strip() for m in data['shipping_methods'] if str(m).strip()]
+        cleaned_methods = []
+        for m in data['shipping_methods']:
+            norm = normalize_shipping_method(m)
+            if norm and norm['name']:
+                cleaned_methods.append(norm)
         setting = ShopSetting.query.filter_by(key='shipping_methods').first()
         if not setting:
-            setting = ShopSetting(key='shipping_methods', value=json.dumps(filtered_methods, ensure_ascii=False))
+            setting = ShopSetting(key='shipping_methods', value=json.dumps(cleaned_methods, ensure_ascii=False))
             db.session.add(setting)
         else:
-            setting.value = json.dumps(filtered_methods, ensure_ascii=False)
+            setting.value = json.dumps(cleaned_methods, ensure_ascii=False)
 
     db.session.commit()
     return jsonify({'success': True})

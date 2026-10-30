@@ -11,11 +11,39 @@ from mSite.models import ShopOrder, ShopSetting, get_tw_now
 
 
 DEFAULT_SHIPPING_METHODS = [
-    "7-11(運費38元)",
-    "全家(運費35元)",
-    "宅配一般地區(運費120元)",
-    "高屏自取(請聯繫闆娘)"
+    {"name": "7-11", "fee": 38.0},
+    {"name": "全家", "fee": 35.0},
+    {"name": "宅配一般地區", "fee": 120.0},
+    {"name": "高屏自取(請LINE聯繫闆娘)", "fee": 0.0}
 ]
+
+
+def normalize_shipping_method(item):
+    """標準化寄送方式格式為 dict: {'name': str, 'fee': float}，支援相容舊版字串"""
+    if isinstance(item, dict):
+        name = str(item.get('name', '')).strip()
+        try:
+            fee = float(item.get('fee', 0))
+            if fee < 0:
+                fee = 0.0
+        except (ValueError, TypeError):
+            fee = 0.0
+        return {'name': name, 'fee': fee}
+    elif isinstance(item, str):
+        s = item.strip()
+        if not s:
+            return None
+        import re
+        m = re.search(r'^(.*?)\s*[\(（]運費[:：]?\s*(\d+(?:\.\d+)?)元?[\)）]$', s)
+        if m:
+            clean_name = m.group(1).strip()
+            try:
+                fee = float(m.group(2))
+            except ValueError:
+                fee = 0.0
+            return {'name': clean_name or s, 'fee': fee}
+        return {'name': s, 'fee': 0.0}
+    return None
 
 
 def get_shop_setting(key, default=''):
@@ -27,18 +55,44 @@ def get_shop_setting(key, default=''):
 
 
 def get_shipping_methods():
-    """取得商城設定的寄送方式清單（JSON 格式解析，若無則回傳預設 4 項）"""
+    """取得商城設定的寄送方式清單（回傳 [{'name': ..., 'fee': ...}, ...]）"""
     val = get_shop_setting('shipping_methods', '')
     if val:
         try:
             methods = json.loads(val)
             if isinstance(methods, list) and len(methods) > 0:
-                filtered = [str(m).strip() for m in methods if str(m).strip()]
-                if filtered:
-                    return filtered
-        except Exception:
-            pass
-    return list(DEFAULT_SHIPPING_METHODS)
+                results = []
+                for m in methods:
+                    norm = normalize_shipping_method(m)
+                    if norm and norm['name']:
+                        results.append(norm)
+                if results:
+                    return results
+        except Exception as e:
+            current_app.logger.warning(f"解析 shipping_methods 警告: {e}")
+    return [dict(m) for m in DEFAULT_SHIPPING_METHODS]
+
+
+def ensure_shop_schema():
+    """確保資料表結構包含新版欄位 (如 shipping_method, shipping_fee)"""
+    try:
+        from sqlalchemy import inspect, text
+        insp = inspect(db.engine)
+        if 'shop_order' in insp.get_table_names():
+            cols = [c['name'] for c in insp.get_columns('shop_order')]
+            with db.engine.connect() as conn:
+                modified = False
+                if 'shipping_method' not in cols:
+                    conn.execute(text("ALTER TABLE shop_order ADD COLUMN shipping_method VARCHAR(100) DEFAULT ''"))
+                    modified = True
+                if 'shipping_fee' not in cols:
+                    conn.execute(text("ALTER TABLE shop_order ADD COLUMN shipping_fee FLOAT DEFAULT 0.0"))
+                    modified = True
+                if modified:
+                    conn.commit()
+    except Exception as e:
+        if current_app:
+            current_app.logger.warning(f"確保 shop_order 結構警告: {e}")
 
 
 def generate_order_no():
@@ -145,19 +199,36 @@ def build_order_summary_text(order, items, shop_name=None):
         f"訂單日期：{created_time_str}",
     ]
 
-    if order.customer_note and order.customer_note.strip():
-        lines.append(f"🚚 寄送方式：{order.customer_note.strip()}")
+    shipping_method_text = getattr(order, 'shipping_method', '') or ''
+    shipping_fee = getattr(order, 'shipping_fee', 0.0) or 0.0
+    if not shipping_method_text and order.customer_note:
+        shipping_method_text = order.customer_note.strip()
+
+    if shipping_method_text:
+        fee_display = f"(運費 NT$ {int(shipping_fee):,})" if shipping_fee > 0 else "(免運費)"
+        lines.append(f"🚚 寄送方式：{shipping_method_text} {fee_display}")
 
     lines.append("")
     lines.append("──── 訂單明細 ────")
+    items_subtotal = 0.0
     for item in items:
         display_name = item.variant_name if (hasattr(item, 'variant_name') and item.variant_name) else item.product_name
         price_str = f"{int(item.subtotal):,}" if item.subtotal.is_integer() else f"{item.subtotal:,.2f}"
         lines.append(f"• {display_name}  x{item.quantity}   NT$ {price_str}")
+        items_subtotal += item.subtotal
+
+    lines.append("━━━━━━━━━━━━━━━━━━")
+    subtotal_str = f"{int(items_subtotal):,}" if items_subtotal.is_integer() else f"{items_subtotal:,.2f}"
+    lines.append(f"商品小計：NT$ {subtotal_str}")
+
+    if shipping_fee > 0:
+        fee_str = f"{int(shipping_fee):,}" if shipping_fee.is_integer() else f"{shipping_fee:,.2f}"
+        lines.append(f"運費：NT$ {fee_str}")
+    else:
+        lines.append("運費：免運費 (NT$ 0)")
 
     total_str = f"{int(order.total_amount):,}" if order.total_amount.is_integer() else f"{order.total_amount:,.2f}"
-    lines.append("━━━━━━━━━━━━━━━━━━")
-    lines.append(f"合計金額（不含運費）：NT$ {total_str}")
+    lines.append(f"合計應付總額：NT$ {total_str}")
 
     return "\n".join(lines)
 
@@ -171,10 +242,12 @@ def build_order_email_html(order, items, shop_name=None):
     total_str = f"{int(order.total_amount):,}" if order.total_amount.is_integer() else f"{order.total_amount:,.2f}"
 
     item_rows = ""
+    items_subtotal = 0.0
     for item in items:
         display_name = item.variant_name if (hasattr(item, 'variant_name') and item.variant_name) else item.product_name
         unit_p = f"{int(item.unit_price):,}" if item.unit_price.is_integer() else f"{item.unit_price:,.2f}"
         sub_p = f"{int(item.subtotal):,}" if item.subtotal.is_integer() else f"{item.subtotal:,.2f}"
+        items_subtotal += item.subtotal
         item_rows += f"""
         <tr style="border-bottom: 1px solid #eee;">
             <td style="padding: 10px 8px;">{display_name}</td>
@@ -184,10 +257,18 @@ def build_order_email_html(order, items, shop_name=None):
         </tr>
         """
 
+    subtotal_str = f"{int(items_subtotal):,}" if items_subtotal.is_integer() else f"{items_subtotal:,.2f}"
+    shipping_method_text = getattr(order, 'shipping_method', '') or ''
+    shipping_fee = getattr(order, 'shipping_fee', 0.0) or 0.0
+    if not shipping_method_text and order.customer_note:
+        shipping_method_text = order.customer_note.strip()
+
+    fee_display_str = f"NT$ {int(shipping_fee):,}" if shipping_fee > 0 else "免運費 (NT$ 0)"
+
     note_html = ""
-    if order.customer_note and order.customer_note.strip():
+    if shipping_method_text:
         note_html = f"""
-        <p style="margin: 6px 0; color: #555;"><strong>🚚 寄送方式：</strong>{order.customer_note.strip()}</p>
+        <p style="margin: 4px 0; color: #555;"><strong>🚚 寄送方式：</strong>{shipping_method_text} ({fee_display_str})</p>
         """
 
     html = f"""
@@ -220,9 +301,17 @@ def build_order_email_html(order, items, shop_name=None):
                         {item_rows}
                     </tbody>
                     <tfoot>
+                        <tr style="border-top: 1px solid #cbd5e1;">
+                            <td colspan="3" style="padding: 8px; text-align: right; color: #64748b;">商品小計：</td>
+                            <td style="padding: 8px; text-align: right; font-weight: 600;">NT$ {subtotal_str}</td>
+                        </tr>
                         <tr>
-                            <td colspan="3" style="padding: 14px 8px; text-align: right; font-weight: bold; font-size: 16px;">總計金額（不含運費）：</td>
-                            <td style="padding: 14px 8px; text-align: right; font-weight: bold; font-size: 18px; color: #e11d48;">NT$ {total_str}</td>
+                            <td colspan="3" style="padding: 8px; text-align: right; color: #64748b;">運費（{shipping_method_text or '寄送'}）：</td>
+                            <td style="padding: 8px; text-align: right; font-weight: 600;">{fee_display_str}</td>
+                        </tr>
+                        <tr style="border-top: 2px solid #e2e8f0;">
+                            <td colspan="3" style="padding: 12px 8px; text-align: right; font-weight: bold; font-size: 16px;">總計金額（含運費）：</td>
+                            <td style="padding: 12px 8px; text-align: right; font-weight: bold; font-size: 18px; color: #e11d48;">NT$ {total_str}</td>
                         </tr>
                     </tfoot>
                 </table>

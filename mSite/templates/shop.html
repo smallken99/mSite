@@ -330,17 +330,26 @@
             <div style="margin-bottom: 14px;">
                 <label style="font-weight: 700; font-size: 0.9rem; color: #1e293b; margin-bottom: 8px; display: block;">寄送方式（請選擇一種）：</label>
                 <el-radio-group v-model="shippingMethod" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
-                    <el-radio v-for="(opt, idx) in shippingMethods" :key="idx" :label="opt" border style="margin: 0; width: 100%; text-align: left; border-radius: 6px;">
-                        <span v-if="opt.includes('7-11') || opt.includes('全家') || opt.includes('超商') || opt.includes('萊爾富') || opt.includes('OK')">🏪 </span>
-                        <span v-else-if="opt.includes('宅配') || opt.includes('郵寄') || opt.includes('快遞') || opt.includes('貨運')">📦 </span>
-                        <span v-else-if="opt.includes('自取') || opt.includes('面交')">🤝 </span>
-                        <span v-else>🚚 </span>
-                        <span>{{ "{{ opt }}" }}</span>
+                    <el-radio v-for="(opt, idx) in shippingMethods" :key="idx" :label="opt.name" border style="margin: 0; width: 100%; text-align: left; border-radius: 8px; padding: 10px 14px; height: auto;">
+                        <div style="display: inline-flex; align-items: center; justify-content: space-between; width: calc(100% - 24px); vertical-align: middle;">
+                            <span>
+                                <span v-if="opt.name.includes('7-11') || opt.name.includes('全家') || opt.name.includes('超商') || opt.name.includes('萊爾富') || opt.name.includes('OK')">🏪 </span>
+                                <span v-else-if="opt.name.includes('宅配') || opt.name.includes('郵寄') || opt.name.includes('快遞') || opt.name.includes('貨運')">📦 </span>
+                                <span v-else-if="opt.name.includes('自取') || opt.name.includes('面交')">🤝 </span>
+                                <span v-else>🚚 </span>
+                                <strong>{{ "{{ opt.name }}" }}</strong>
+                            </span>
+                            <span style="font-size: 0.85rem; font-weight: 600; padding: 2px 8px; border-radius: 12px;" :style="{ background: opt.fee > 0 ? '#e0f2fe' : '#dcfce7', color: opt.fee > 0 ? '#0284c7' : '#16a34a' }">
+                                <span v-if="opt.fee > 0">+ NT$ {{ "{{ formatPrice(opt.fee) }}" }}</span>
+                                <span v-else>免運費</span>
+                            </span>
+                        </div>
                     </el-radio>
                 </el-radio-group>
             </div>
 
-            <div style="background-color: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+            <!-- 金額明細卡片 -->
+            <div style="background-color: #f8fafc; border-radius: 8px; padding: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
                 <div v-for="item in cart" :key="item.variant_id" style="display: flex; justify-content: space-between; align-items: baseline; font-size: 0.88rem; margin-bottom: 6px; color: #334155; line-height: 1.4;">
                     <div style="flex: 1; padding-right: 8px; word-break: break-word;">
                         <span>{{ "{{ item.variant_name || item.name }}" }}</span>
@@ -348,9 +357,22 @@
                     </div>
                     <span style="font-weight: 600; white-space: nowrap;">NT$ {{ "{{ formatPrice(item.price * item.quantity) }}" }}</span>
                 </div>
-                <div style="border-top: 1px dashed #cbd5e1; margin-top: 8px; padding-top: 8px; display: flex; justify-content: space-between; font-weight: bold; font-size: 0.95rem;">
-                    <span>總金額（不含運費）：</span>
-                    <span style="color: #e11d48;">NT$ {{ "{{ formatPrice(cartTotal) }}" }}</span>
+
+                <div style="border-top: 1px dashed #cbd5e1; margin-top: 10px; padding-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.88rem; color: #64748b; margin-bottom: 4px;">
+                        <span>商品小計：</span>
+                        <span style="font-weight: 600; color: #334155;">NT$ {{ "{{ formatPrice(cartTotal) }}" }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.88rem; color: #64748b; margin-bottom: 6px;">
+                        <span>運費（{{ "{{ shippingMethod }}" }}）：</span>
+                        <span style="font-weight: 600;" :style="{ color: currentShippingFee > 0 ? '#0284c7' : '#16a34a' }">
+                            {{ "{{ currentShippingFee > 0 ? '+ NT$ ' + formatPrice(currentShippingFee) : '免運費 (NT$ 0)' }}" }}
+                        </span>
+                    </div>
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 6px; display: flex; justify-content: space-between; font-weight: bold; font-size: 1.05rem;">
+                        <span>應付總額（含運費）：</span>
+                        <span style="color: #e11d48; font-size: 1.15rem;">NT$ {{ "{{ formatPrice(finalOrderTotal) }}" }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -358,7 +380,7 @@
         <span slot="footer" class="dialog-footer" style="display: flex; gap: 8px;">
             <el-button @click="showCheckout = false" style="flex: 1;">返回修改</el-button>
             <el-button type="primary" :loading="submitting" @click="submitOrder" style="flex: 1.2; font-weight: bold;">
-                產出訂單資訊
+                產出訂單資訊 (NT$ {{ "{{ formatPrice(finalOrderTotal) }}" }})
             </el-button>
         </span>
     </el-dialog>
@@ -549,12 +571,12 @@ new Vue({
             showCheckout: false,
             showSuccess: false,
             shippingMethods: [
-                '7-11(運費38元)',
-                '全家(運費35元)',
-                '宅配一般地區(運費120元)',
-                '高屏自取(請聯繫闆娘)'
+                { name: '7-11', fee: 38 },
+                { name: '全家', fee: 35 },
+                { name: '宅配一般地區', fee: 120 },
+                { name: '高屏自取(請LINE聯繫闆娘)', fee: 0 }
             ],
-            shippingMethod: '7-11(運費38元)',
+            shippingMethod: '7-11',
             orderNo: '',
             orderSummary: '',
             copied: false,
@@ -592,6 +614,17 @@ new Vue({
         cartTotal() {
             return this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         },
+        currentShippingMethod() {
+            if (!this.shippingMethods || this.shippingMethods.length === 0) return null;
+            return this.shippingMethods.find(m => m.name === this.shippingMethod) || this.shippingMethods[0];
+        },
+        currentShippingFee() {
+            const m = this.currentShippingMethod;
+            return m ? (Number(m.fee) || 0) : 0;
+        },
+        finalOrderTotal() {
+            return this.cartTotal + this.currentShippingFee;
+        },
         detailDisplayImage() {
             if (!this.detailProduct) return '/static/shop/products/default.jpg';
             // 若選中規格有圖片則用規格圖，否則用主品項圖
@@ -625,9 +658,18 @@ new Vue({
             axios.get('/shop/api/settings')
                 .then(res => {
                     if (res.data.shipping_methods && res.data.shipping_methods.length > 0) {
-                        this.shippingMethods = res.data.shipping_methods;
-                        if (!this.shippingMethods.includes(this.shippingMethod)) {
-                            this.shippingMethod = this.shippingMethods[0];
+                        this.shippingMethods = res.data.shipping_methods.map(m => {
+                            if (typeof m === 'object' && m !== null) {
+                                return {
+                                    name: m.name || '',
+                                    fee: typeof m.fee !== 'undefined' ? Number(m.fee) : 0
+                                };
+                            }
+                            return { name: String(m), fee: 0 };
+                        });
+                        const hasSelected = this.shippingMethods.some(m => m.name === this.shippingMethod);
+                        if (!hasSelected && this.shippingMethods.length > 0) {
+                            this.shippingMethod = this.shippingMethods[0].name;
                         }
                     }
                 })
@@ -900,6 +942,8 @@ new Vue({
 
             const payload = {
                 note: this.shippingMethod,
+                shipping_method: this.shippingMethod,
+                shipping_fee: this.currentShippingFee,
                 items: this.cart.map(item => ({
                     variant_id: item.variant_id,
                     quantity: item.quantity
@@ -918,7 +962,7 @@ new Vue({
                         // 清空購物車
                         this.cart = [];
                         this.saveCart();
-                        this.shippingMethod = (this.shippingMethods && this.shippingMethods.length > 0) ? this.shippingMethods[0] : '7-11(運費38元)';
+                        this.shippingMethod = (this.shippingMethods && this.shippingMethods.length > 0) ? this.shippingMethods[0].name : '7-11';
 
                         // 重新載入商品（庫存已更新）
                         this.fetchProducts();

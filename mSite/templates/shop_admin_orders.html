@@ -102,6 +102,9 @@
                 <div style="font-size: 13px; color: #64748b; margin-bottom: 6px;">
                     <strong>成立時間：</strong>{{ "{{ currentOrder.created_at }}" }}
                 </div>
+                <div style="font-size: 13px; color: #64748b; margin-bottom: 6px;" v-if="currentOrder.shipping_method">
+                    <strong>寄送方式：</strong>{{ "{{ currentOrder.shipping_method }}" }} (運費 NT$ {{ "{{ formatPrice(currentOrder.shipping_fee) }}" }})
+                </div>
                 <div style="font-size: 13px; color: #64748b;">
                     <strong>客戶備註：</strong>{{ "{{ currentOrder.customer_note || '無' }}" }}
                 </div>
@@ -127,8 +130,16 @@
                 </el-table-column>
             </el-table>
 
-            <div style="text-align: right; font-size: 1.1rem; margin-bottom: 20px;">
-                <span>訂單總額：</span>
+            <div style="text-align: right; font-size: 0.95rem; color: #64748b; margin-bottom: 4px;">
+                <span>商品小計：</span>
+                <span style="font-weight: 600; color: #334155;">NT$ {{ "{{ formatPrice(currentOrder.subtotal_amount) }}" }}</span>
+            </div>
+            <div style="text-align: right; font-size: 0.95rem; color: #64748b; margin-bottom: 8px;">
+                <span>運費：</span>
+                <span style="font-weight: 600; color: #334155;">NT$ {{ "{{ formatPrice(currentOrder.shipping_fee) }}" }}</span>
+            </div>
+            <div style="text-align: right; font-size: 1.1rem; margin-bottom: 20px; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
+                <span>訂單總額（含運費）：</span>
                 <span style="color: #e11d48; font-weight: bold; font-size: 1.3rem;">NT$ {{ "{{ formatPrice(currentOrder.total_amount) }}" }}</span>
             </div>
 

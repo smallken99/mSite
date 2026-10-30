@@ -189,6 +189,8 @@ class ShopOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_no = db.Column(db.String(20), unique=True, nullable=False)
     customer_note = db.Column(db.Text, default='')
+    shipping_method = db.Column(db.String(100), default='')
+    shipping_fee = db.Column(db.Float, default=0.0)
     total_amount = db.Column(db.Float, nullable=False, default=0.0)
     status = db.Column(db.String(20), nullable=False, default='pending')
     created_at = db.Column(db.DateTime, default=get_tw_now)
@@ -196,10 +198,14 @@ class ShopOrder(db.Model):
     items = db.relationship('ShopOrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
+        subtotal = sum(item.subtotal for item in self.items) if self.items else 0.0
         return {
             'id': self.id,
             'order_no': self.order_no,
             'customer_note': self.customer_note,
+            'shipping_method': self.shipping_method or '',
+            'shipping_fee': self.shipping_fee if self.shipping_fee is not None else 0.0,
+            'subtotal_amount': subtotal,
             'total_amount': self.total_amount,
             'status': self.status,
             'created_at': self.created_at.strftime('%Y/%m/%d %H:%M') if self.created_at else '',

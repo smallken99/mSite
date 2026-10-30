@@ -1541,4 +1541,17 @@ body.shop-body {
     color: #ffffff;
 }
 
+/* 結帳對話框寄送方式單選美化 */
+.checkout-dialog .el-radio.is-bordered {
+    display: flex !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+}
+
+.checkout-dialog .el-radio.is-bordered .el-radio__label {
+    flex: 1 !important;
+    padding-left: 8px !important;
+}
+
+
 

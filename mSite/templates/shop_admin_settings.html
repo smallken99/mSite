@@ -46,19 +46,25 @@
                     <!-- 寄送方式選項設定 -->
                     <el-form-item label="寄送方式選項">
                         <div style="font-size: 12px; color: #64748b; margin-bottom: 10px;">
-                            前台核對訂單時提供客戶單選的寄送方式。您可以自由編輯文字、新增、刪除或調整順序：
+                            前台核對訂單時提供客戶單選的寄送方式。您可以自由設定名稱、運費金額（NT$）、新增、刪除或調整順序：
                         </div>
-                        <div style="display: flex; flex-direction: column; gap: 8px; max-width: 600px;">
-                            <div v-for="(method, idx) in form.shipping_methods" :key="idx" style="display: flex; gap: 8px; align-items: center;">
+                        <div style="display: flex; flex-direction: column; gap: 8px; max-width: 650px;">
+                            <div v-for="(method, idx) in form.shipping_methods" :key="idx" style="display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
                                 <span style="font-size: 13px; font-weight: bold; color: #94a3b8; width: 22px; text-align: center;">{{ "{{ idx + 1 }}" }}.</span>
-                                <el-input v-model="form.shipping_methods[idx]" placeholder="請輸入寄送方式名稱與運費說明" size="small" style="flex: 1;"></el-input>
+                                
+                                <el-input v-model="method.name" placeholder="寄送方式名稱 (例: 7-11、全家)" size="small" style="flex: 1; min-width: 160px;"></el-input>
+                                
+                                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <span style="font-size: 13px; color: #475569; white-space: nowrap; font-weight: 600;">運費 NT$</span>
+                                    <el-input v-model.number="method.fee" type="number" :min="0" size="small" placeholder="0" style="width: 85px;"></el-input>
+                                </div>
                                 
                                 <!-- 上移 / 下移 / 刪除 -->
-                                <el-button-group size="mini">
+                                <el-button-group size="mini" style="flex-shrink: 0;">
                                     <el-button icon="el-icon-top" :disabled="idx === 0" @click="moveShippingMethod(idx, -1)" title="上移"></el-button>
                                     <el-button icon="el-icon-bottom" :disabled="idx === form.shipping_methods.length - 1" @click="moveShippingMethod(idx, 1)" title="下移"></el-button>
                                 </el-button-group>
-                                <el-button type="danger" icon="el-icon-delete" size="mini" plain @click="removeShippingMethod(idx)" title="刪除選項"></el-button>
+                                <el-button type="danger" icon="el-icon-delete" size="mini" plain @click="removeShippingMethod(idx)" title="刪除選項" style="flex-shrink: 0;"></el-button>
                             </div>
                         </div>
 
@@ -157,10 +163,10 @@ new Vue({
                 shop_name: '棋新商城',
                 admin_email: '',
                 shipping_methods: [
-                    '7-11(運費38元)',
-                    '全家(運費35元)',
-                    '宅配一般地區(運費120元)',
-                    '高屏自取(請聯繫闆娘)'
+                    { name: '7-11', fee: 38 },
+                    { name: '全家', fee: 35 },
+                    { name: '宅配一般地區', fee: 120 },
+                    { name: '高屏自取(請LINE聯繫闆娘)', fee: 0 }
                 ]
             }
         };
@@ -177,7 +183,15 @@ new Vue({
                     this.form.admin_email = res.data.admin_email || '';
                     this.announcementImage = res.data.announcement_image || '';
                     if (res.data.shipping_methods && res.data.shipping_methods.length > 0) {
-                        this.form.shipping_methods = res.data.shipping_methods;
+                        this.form.shipping_methods = res.data.shipping_methods.map(m => {
+                            if (typeof m === 'object' && m !== null) {
+                                return {
+                                    name: m.name || '',
+                                    fee: typeof m.fee !== 'undefined' ? Number(m.fee) : 0
+                                };
+                            }
+                            return { name: String(m), fee: 0 };
+                        });
                     }
                 })
                 .catch(err => {
@@ -189,7 +203,7 @@ new Vue({
                 });
         },
         addShippingMethod() {
-            this.form.shipping_methods.push('');
+            this.form.shipping_methods.push({ name: '', fee: 0 });
         },
         removeShippingMethod(idx) {
             if (this.form.shipping_methods.length <= 1) {
@@ -206,16 +220,25 @@ new Vue({
         },
         resetDefaultShippingMethods() {
             this.form.shipping_methods = [
-                '7-11(運費38元)',
-                '全家(運費35元)',
-                '宅配一般地區(運費120元)',
-                '高屏自取(請聯繫闆娘)'
+                { name: '7-11', fee: 38 },
+                { name: '全家', fee: 35 },
+                { name: '宅配一般地區', fee: 120 },
+                { name: '高屏自取(請LINE聯繫闆娘)', fee: 0 }
             ];
             this.$message.info('已重置為預設 4 個選項，請記得點擊「儲存設定」！');
         },
         saveSettings() {
-            // 過濾空白項目
-            const cleanedMethods = this.form.shipping_methods.map(m => (m || '').trim()).filter(m => m.length > 0);
+            // 過濾空白項目與確保運費數字
+            const cleanedMethods = [];
+            for (const m of this.form.shipping_methods) {
+                const name = (m.name || '').trim();
+                if (name) {
+                    cleanedMethods.push({
+                        name: name,
+                        fee: Math.max(0, Number(m.fee) || 0)
+                    });
+                }
+            }
             if (cleanedMethods.length === 0) {
                 this.$message.warning('請至少輸入一種有效的寄送方式名稱');
                 return;
