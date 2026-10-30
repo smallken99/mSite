@@ -1,6 +1,7 @@
 import os
 import secrets
 import json
+import threading
 from datetime import datetime
 from PIL import Image, ImageOps
 from flask import current_app
@@ -237,8 +238,18 @@ def build_order_email_html(order, items, shop_name=None):
     return html
 
 
+def _send_async_email(app, msg, order_no, recipient):
+    """背景執行發送 Email，並在應用程式上下文中執行"""
+    with app.app_context():
+        try:
+            mail.send(msg)
+            app.logger.info(f"訂單 {order_no} 通知信已成功發送至 {recipient}")
+        except Exception as e:
+            app.logger.error(f"非同步發送訂單 Email 失敗 ({order_no}): {str(e)}")
+
+
 def send_order_notification(order, items):
-    """發送訂單通知信件給管理者"""
+    """發送訂單通知信件給管理者（非同步背景發送，避免阻塞結帳流程）"""
     admin_email = get_shop_setting('admin_email')
     if not admin_email or not admin_email.strip():
         current_app.logger.warning("未設定管理者 Email (admin_email)，跳過訂單郵件通知")
@@ -258,11 +269,15 @@ def send_order_notification(order, items):
         )
         msg.body = plain_summary
         msg.html = html_content
-        mail.send(msg)
-        current_app.logger.info(f"訂單 {order.order_no} 通知信已成功發送至 {admin_email.strip()}")
-        return True, "發送成功"
+        
+        # 取得實際 app 實例並啟動非同步 thread
+        app = current_app._get_current_object()
+        thr = threading.Thread(target=_send_async_email, args=(app, msg, order.order_no, admin_email.strip()))
+        thr.daemon = True
+        thr.start()
+        return True, "已排入背景發送"
     except Exception as e:
-        err_msg = f"發送訂單 Email 失敗: {str(e)}"
+        err_msg = f"排入訂單 Email 失敗: {str(e)}"
         current_app.logger.error(err_msg)
         return False, err_msg
 
